@@ -1,5 +1,4 @@
 // app/(tabs)/home.tsx
-// CATATAN: Header menggunakan ikon LONCENG (notifications-outline) — BUKAN logout.
 import React, { useState } from 'react';
 import {
   View,
@@ -11,6 +10,8 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -83,7 +84,13 @@ const DUMMY_ANNOUNCEMENTS = [
 ];
 
 export default function HomeScreen() {
-  const username = userState.getNama() || 'Siswa';
+  const username = userState.getNama() || 'Dimas Saputra';
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutModal(false);
+    router.replace('/login');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -92,24 +99,28 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* HEADER */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="school" size={16} color={Colors.primary} />
-            </View>
-            <View>
-              <Text style={styles.headerGreeting}>Selamat datang,</Text>
-              <Text style={styles.headerName}>{username} 👋</Text>
-            </View>
+        {/* TOP PROFILE CARD HEADER */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarBorder}>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80' }}
+              style={styles.avatarImage}
+            />
           </View>
-          <TouchableOpacity style={styles.bellButton} activeOpacity={0.7}>
-            <Ionicons name="notifications-outline" size={22} color={Colors.textMain} />
-            <View style={styles.bellDot} />
+          <View style={styles.profileTextContainer}>
+            <Text style={styles.profileName}>{username}</Text>
+            <Text style={styles.profileSubtitle}>XII RPL 1 • Angkatan 2024</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.logoutIconButton}
+            activeOpacity={0.7}
+            onPress={() => setShowLogoutModal(true)}
+          >
+            <Ionicons name="exit-outline" size={24} color="#3D2723" />
           </TouchableOpacity>
         </View>
 
-        {/* EVENT BANNER */}
+        {/* EVENT BANNER SECTION */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Event Terdekat</Text>
           <TouchableOpacity
@@ -153,12 +164,12 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
-        {/* PENGUMUMAN TERBARU */}
+        {/* PENGUMUMAN TERBARU SECTION */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Pengumuman Terbaru</Text>
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push('/arsip-pengumuman')}
+            onPress={() => router.push('/(tabs)/info')}
           >
             <Text style={styles.sectionLink}>Lihat Semua →</Text>
           </TouchableOpacity>
@@ -187,6 +198,42 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Logout Modal */}
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setShowLogoutModal(false)}>
+          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalIcon}>
+              <Ionicons name="log-out-outline" size={32} color={Colors.primary} />
+            </View>
+            <Text style={styles.modalTitle}>Keluar Akun</Text>
+            <Text style={styles.modalDesc}>
+              Apakah kamu yakin ingin keluar dari akun ini?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setShowLogoutModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelBtnText}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutBtn}
+                onPress={handleLogout}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.logoutBtnText}>Keluar</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -194,65 +241,66 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F5F7FA',
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   scrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
 
-  // Header
-  header: {
+  // Profile Card Header
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.base,
     backgroundColor: Colors.white,
+    borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 14,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  logoBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryLight,
+  avatarBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#E53935',
+    padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerGreeting: {
-    fontSize: 12,
-    color: Colors.textSubtitle,
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
+  },
+  profileTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1E1E',
+    marginBottom: 2,
+  },
+  profileSubtitle: {
+    fontSize: 13,
+    color: '#757575',
     fontWeight: '400',
   },
-  headerName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textMain,
-  },
-  bellButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.white,
+  logoutIconButton: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
-  bellDot: {
-    position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-    borderWidth: 1.5,
-    borderColor: Colors.white,
   },
 
   // Section header
@@ -393,5 +441,78 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textSubtitle,
     fontWeight: '500',
+  },
+
+  // Modal
+  overlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  modal: {
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    padding: Spacing.xl,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.base,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textMain,
+    marginBottom: Spacing.sm,
+  },
+  modalDesc: {
+    fontSize: 14,
+    color: Colors.textSubtitle,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: Spacing.xl,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: Radius.round,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textMain,
+  },
+  logoutBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: Radius.round,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+  },
+  logoutBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.white,
   },
 });

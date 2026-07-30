@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +17,7 @@ import { Colors, Spacing, Radius } from '../../constants/theme';
 import { userState } from '../../constants/userState';
 
 export default function ProfileScreen() {
-  const username = userState.getNama() || 'Siswa Google';
+  const username = userState.getNama() || 'Dimas Saputra';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleLogout = () => {
@@ -26,24 +27,33 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Red banner header */}
-      <View style={styles.banner}>
-        <Text style={styles.bannerTitle}>Profil Saya</Text>
-        {/* Avatar */}
-        <View style={styles.avatarWrapper}>
-          <View style={styles.avatarCircle}>
-            <Ionicons name="person" size={42} color={Colors.primary} />
-          </View>
+      {/* Header Title */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profil Saya</Text>
+      </View>
+
+      {/* User Profile Card matching mockup */}
+      <View style={styles.profileCard}>
+        <View style={styles.avatarBorder}>
+          <Image
+            source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80' }}
+            style={styles.avatarImage}
+          />
         </View>
+        <View style={styles.profileTextContainer}>
+          <Text style={styles.profileName}>{username}</Text>
+          <Text style={styles.profileSubtitle}>XII RPL 1 • Angkatan 2024</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.logoutIconButton}
+          activeOpacity={0.7}
+          onPress={() => setShowLogoutModal(true)}
+        >
+          <Ionicons name="exit-outline" size={24} color="#3D2723" />
+        </TouchableOpacity>
       </View>
 
-      {/* Name section */}
-      <View style={styles.nameSection}>
-        <Text style={styles.userName}>{username}</Text>
-        <Text style={styles.userSub}>XII RPL 1 · SMKN 4 Malang</Text>
-      </View>
-
-      {/* Menu */}
+      {/* Menu Options */}
       <View style={styles.menuSection}>
         <View style={styles.menuCard}>
           <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
@@ -92,7 +102,6 @@ export default function ProfileScreen() {
       >
         <Pressable style={styles.overlay} onPress={() => setShowLogoutModal(false)}>
           <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            {/* Icon */}
             <View style={styles.modalIcon}>
               <Ionicons name="log-out-outline" size={32} color={Colors.primary} />
             </View>
@@ -126,57 +135,78 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
-    paddingTop: Platform.OS === 'android' ? 0 : 0,
+    backgroundColor: '#F5F7FA',
+    paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
-  banner: {
-    backgroundColor: Colors.primary,
-    paddingTop: Platform.OS === 'android' ? 48 : 24,
-    paddingBottom: 48,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  bannerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.white,
-    marginBottom: Spacing.lg,
-  },
-  avatarWrapper: {
-    position: 'absolute',
-    bottom: -38,
-    alignSelf: 'center',
-  },
-  avatarCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+  header: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.base,
+    paddingBottom: Spacing.xs,
     backgroundColor: Colors.white,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+
+  // Profile Card Header
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 14,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  avatarBorder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#E53935',
+    padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: Colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
   },
-  nameSection: {
-    alignItems: 'center',
-    marginTop: 50,
-    marginBottom: Spacing.xl,
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
   },
-  userName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.textMain,
+  profileTextContainer: {
+    flex: 1,
+    marginLeft: 12,
   },
-  userSub: {
+  profileName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E1E1E',
+    marginBottom: 2,
+  },
+  profileSubtitle: {
     fontSize: 13,
-    color: Colors.textSubtitle,
-    marginTop: 4,
+    color: '#757575',
+    fontWeight: '400',
   },
+  logoutIconButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Menu Section
   menuSection: {
     paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
@@ -189,6 +219,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   menuItem: {
     flexDirection: 'row',

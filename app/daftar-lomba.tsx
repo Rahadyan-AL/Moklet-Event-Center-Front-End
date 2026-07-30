@@ -17,11 +17,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, Spacing, Radius } from '../constants/theme';
 
 const MOKLET_CUP_BRANCHES = [
-  { id: '1', name: 'Basket (Putra)', type: 'Kelompok', icon: 'basketball-outline' },
-  { id: '2', name: 'Futsal (Campuran)', type: 'Kelompok', icon: 'football-outline' },
-  { id: '3', name: 'E-Sport Mobile Legends', type: 'Kelompok', icon: 'game-controller-outline' },
-  { id: '4', name: 'Tarik Tambang', type: 'Kelompok', icon: 'people-outline' },
-  { id: '5', name: 'Voli Campuran', type: 'Kelompok', icon: 'fitness-outline' },
+  { id: '1', name: 'Basket (Putra)', type: 'Kelompok', minMax: 'Min. 4 anggota, Maks. 5 anggota', icon: 'basketball-outline' },
+  { id: '2', name: 'Futsal (Campuran)', type: 'Kelompok', minMax: 'Min. 5 anggota, Maks. 7 anggota', icon: 'football-outline' },
+  { id: '3', name: 'E-Sport Mobile Legends', type: 'Kelompok', minMax: 'Min. 5 anggota, Maks. 6 anggota', icon: 'game-controller-outline' },
+  { id: '4', name: 'Tarik Tambang', type: 'Kelompok', minMax: 'Min. 6 anggota, Maks. 8 anggota', icon: 'people-outline' },
+  { id: '5', name: 'Voli Campuran', type: 'Kelompok', minMax: 'Min. 6 anggota, Maks. 8 anggota', icon: 'fitness-outline' },
 ];
 
 const EVENT_NAMES: Record<string, string> = {
@@ -39,30 +39,32 @@ export default function DaftarLombaScreen() {
   const eventName = EVENT_NAMES[currentEventId] || 'Moklet Cup 2024';
 
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showTeamCodeModal, setShowTeamCodeModal] = useState(false);
-  const [teamCode, setTeamCode] = useState('');
+  const [showChoiceModal, setShowChoiceModal] = useState(false);
+  const [showEnterCodeModal, setShowEnterCodeModal] = useState(false);
+  const [roomCodeInput, setRoomCodeInput] = useState('');
 
-  // Hanya event teratas (id === '1') yang memiliki data cabang lomba dummy
   const branches = currentEventId === '1' ? MOKLET_CUP_BRANCHES : [];
 
-  const handleDaftar = (branch: Branch) => {
+  const handleBranchClick = (branch: Branch) => {
     setSelectedBranch(branch);
-    setShowConfirmModal(true);
+    setShowChoiceModal(true);
   };
 
-  const handleConfirmDaftar = () => {
-    setShowConfirmModal(false);
-    if (selectedBranch?.type === 'Kelompok') {
-      setTimeout(() => setShowTeamCodeModal(true), 300);
-    } else {
-      router.push('/room-tim');
-    }
+  const handlePressEnterCode = () => {
+    setShowChoiceModal(false);
+    setTimeout(() => {
+      setShowEnterCodeModal(true);
+    }, 200);
   };
 
-  const handleGabungTim = () => {
-    setShowTeamCodeModal(false);
-    router.push('/room-tim');
+  const handlePressCreateRoom = () => {
+    setShowChoiceModal(false);
+    router.push({ pathname: '/room-tim', params: { mode: 'create' } });
+  };
+
+  const handleGabungRoom = () => {
+    setShowEnterCodeModal(false);
+    router.push({ pathname: '/room-tim', params: { mode: 'join' } });
   };
 
   return (
@@ -90,7 +92,7 @@ export default function DaftarLombaScreen() {
               <TouchableOpacity
                 style={styles.branchItem}
                 activeOpacity={0.7}
-                onPress={() => handleDaftar(branch)}
+                onPress={() => handleBranchClick(branch)}
               >
                 <View style={styles.branchLeft}>
                   <View style={styles.branchIcon}>
@@ -99,18 +101,14 @@ export default function DaftarLombaScreen() {
                   <View>
                     <Text style={styles.branchName}>{branch.name}</Text>
                     <View style={styles.typeRow}>
-                      <Ionicons
-                        name={branch.type === 'Kelompok' ? 'people-outline' : 'person-outline'}
-                        size={12}
-                        color={Colors.textSubtitle}
-                      />
+                      <Ionicons name="people-outline" size={12} color={Colors.textSubtitle} />
                       <Text style={styles.branchType}>{branch.type}</Text>
                     </View>
                   </View>
                 </View>
                 <TouchableOpacity
                   style={styles.daftarBtn}
-                  onPress={() => handleDaftar(branch)}
+                  onPress={() => handleBranchClick(branch)}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.daftarBtnText}>Daftar</Text>
@@ -132,73 +130,90 @@ export default function DaftarLombaScreen() {
         </View>
       )}
 
-      {/* Confirm Modal */}
+      {/* MODAL 1: Choice Modal (Masukkan Kode Room vs Buat Room) */}
       <Modal
-        visible={showConfirmModal}
+        visible={showChoiceModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowConfirmModal(false)}
+        onRequestClose={() => setShowChoiceModal(false)}
       >
-        <Pressable style={styles.overlay} onPress={() => setShowConfirmModal(false)}>
-          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalIconBox}>
-              <Ionicons name="trophy-outline" size={30} color={Colors.primary} />
-            </View>
-            <Text style={styles.modalTitle}>{selectedBranch?.name}</Text>
-            <Text style={styles.modalDesc}>
-              Kamu akan mendaftarkan diri sebagai peserta pada cabang lomba ini.
+        <Pressable style={styles.overlay} onPress={() => setShowChoiceModal(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.choiceTitle}>{selectedBranch?.name || 'Basket (Putra)'}</Text>
+            <Text style={styles.choiceSubtitle}>
+              {selectedBranch?.minMax || 'Min. 4 anggota, Maks. 5 anggota'}
             </Text>
-            <View style={styles.modalButtons}>
+
+            {/* Side-by-Side Action Buttons */}
+            <View style={styles.choiceButtonRow}>
               <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setShowConfirmModal(false)}
+                style={styles.enterCodeOutlineBtn}
                 activeOpacity={0.8}
+                onPress={handlePressEnterCode}
               >
-                <Text style={styles.cancelBtnText}>Batal</Text>
+                <Text style={styles.enterCodeOutlineText}>Masukkan Kode Room</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={styles.confirmBtn}
-                onPress={handleConfirmDaftar}
-                activeOpacity={0.8}
+                style={styles.createRoomSolidBtn}
+                activeOpacity={0.85}
+                onPress={handlePressCreateRoom}
               >
-                <Text style={styles.confirmBtnText}>Daftar Sekarang</Text>
+                <Text style={styles.createRoomSolidText}>Buat Room</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Batal Button */}
+            <TouchableOpacity
+              style={styles.cancelFullBtn}
+              activeOpacity={0.8}
+              onPress={() => setShowChoiceModal(false)}
+            >
+              <Text style={styles.cancelFullText}>Batal</Text>
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Team Code Modal */}
+      {/* MODAL 2: Enter Code Modal (Masukkan Kode Room) */}
       <Modal
-        visible={showTeamCodeModal}
+        visible={showEnterCodeModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowTeamCodeModal(false)}
+        onRequestClose={() => setShowEnterCodeModal(false)}
       >
-        <Pressable style={styles.overlay} onPress={() => setShowTeamCodeModal(false)}>
-          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalIconBox, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="key-outline" size={30} color="#1565C0" />
-            </View>
-            <Text style={styles.modalTitle}>Masukkan Kode Tim</Text>
-            <Text style={styles.modalDesc}>
-              Masukkan kode tim yang telah dibagikan oleh ketua tim untuk bergabung.
+        <Pressable style={styles.overlay} onPress={() => setShowEnterCodeModal(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.enterCodeTitle}>Masukkan Kode Room</Text>
+            <Text style={styles.enterCodeDesc}>
+              Masukkan 6 digit kode yang diberikan oleh pembuat room.
             </Text>
+
             <TextInput
-              style={styles.codeInput}
-              placeholder="Contoh: MKL123"
-              placeholderTextColor={Colors.textPlaceholder}
-              value={teamCode}
-              onChangeText={setTeamCode}
-              autoCapitalize="characters"
-              autoCorrect={false}
+              style={styles.codeInputBox}
+              placeholder="000000"
+              placeholderTextColor="#94A3B8"
+              value={roomCodeInput}
+              onChangeText={setRoomCodeInput}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
             />
+
             <TouchableOpacity
-              style={[styles.confirmBtn, { width: '100%', marginTop: 0 }]}
-              onPress={handleGabungTim}
-              activeOpacity={0.8}
+              style={styles.gabungRoomBtn}
+              activeOpacity={0.85}
+              onPress={handleGabungRoom}
             >
-              <Text style={styles.confirmBtnText}>Gabung Tim</Text>
+              <Text style={styles.gabungRoomText}>Gabung Room</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelFullBtn}
+              activeOpacity={0.8}
+              onPress={() => setShowEnterCodeModal(false)}
+            >
+              <Text style={styles.cancelFullText}>Batal</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -210,7 +225,7 @@ export default function DaftarLombaScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F5F7FA',
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
@@ -229,7 +244,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F5F7FA',
   },
   headerTitle: {
     fontSize: 16,
@@ -298,7 +313,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.base,
   },
 
-  // Empty State
+  // Empty state
   emptyStateContainer: {
     flex: 1,
     alignItems: 'center',
@@ -332,15 +347,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Modal
+  // Modals Styling
   overlay: {
     flex: 1,
-    backgroundColor: Colors.overlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
   },
-  modal: {
+  modalCard: {
     backgroundColor: Colors.white,
     borderRadius: 24,
     padding: Spacing.xl,
@@ -348,73 +363,116 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 12,
   },
-  modalIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  modalTitle: {
+
+  // Choice Modal
+  choiceTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: Colors.textMain,
-    marginBottom: Spacing.sm,
+    marginBottom: 6,
     textAlign: 'center',
   },
-  modalDesc: {
+  choiceSubtitle: {
+    fontSize: 13,
+    color: Colors.textSubtitle,
+    marginBottom: Spacing.xl,
+    textAlign: 'center',
+  },
+  choiceButtonRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+    marginBottom: Spacing.md,
+  },
+  enterCodeOutlineBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#B81414',
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  enterCodeOutlineText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B81414',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  createRoomSolidBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor: '#B81414',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createRoomSolidText: {
     fontSize: 14,
+    fontWeight: '700',
+    color: Colors.white,
+    textAlign: 'center',
+  },
+  cancelFullBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelFullText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textMain,
+  },
+
+  // Enter Code Modal
+  enterCodeTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textMain,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  enterCodeDesc: {
+    fontSize: 13,
     color: Colors.textSubtitle,
     textAlign: 'center',
-    lineHeight: 21,
+    lineHeight: 20,
     marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.sm,
   },
-  codeInput: {
+  codeInputBox: {
     width: '100%',
     height: 52,
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.base,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
     fontSize: 18,
     fontWeight: '700',
     color: Colors.textMain,
     textAlign: 'center',
     letterSpacing: 4,
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.md,
   },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: Spacing.md,
+  gabungRoomBtn: {
     width: '100%',
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: Radius.round,
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#B81414',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
   },
-  cancelBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textMain,
-  },
-  confirmBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: Radius.round,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-  },
-  confirmBtnText: {
+  gabungRoomText: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.white,
