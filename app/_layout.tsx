@@ -19,6 +19,10 @@ export default function RootLayout() {
         <Stack.Screen name="verify-otp" />
         <Stack.Screen name="complete-profile" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="event-detail" />
+        <Stack.Screen name="daftar-lomba" />
+        <Stack.Screen name="room-tim" />
+        <Stack.Screen name="arsip-pengumuman" />
       </Stack>
     </>
   );

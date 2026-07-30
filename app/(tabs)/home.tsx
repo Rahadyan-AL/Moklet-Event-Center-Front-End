@@ -1,4 +1,5 @@
 // app/(tabs)/home.tsx
+// CATATAN: Header menggunakan ikon LONCENG (notifications-outline) — BUKAN logout.
 import React, { useState } from 'react';
 import {
   View,
@@ -8,84 +9,81 @@ import {
   Platform,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Image,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { userState } from '../../constants/userState';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.85;
+const BANNER_WIDTH = width - Spacing.xl * 2;
 
-// ==== Dummy Data ====
-
-const DUMMY_EVENTS = [
+const DUMMY_BANNERS = [
   {
     id: '1',
     title: 'Moklet Cup 2024',
-    image: 'https://images.unsplash.com/photo-1544698310-74ea9d1c8258?w=600',
-    status: 'Pendaftaran Buka',
-    dateRange: '15 - 20 Aug 2024',
-    location: 'Sport Hall',
-    category: 'Olahraga',
+    tag: 'MOKLET CUP',
+    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
+    dateRange: '15 - 20 Agustus 2024',
+    location: 'Sport Hall SMKN 4 Malang',
   },
   {
     id: '2',
     title: 'Pekan Raya Akademik',
-    image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=600',
-    status: 'Pendaftaran Buka',
-    dateRange: '25 - 28 Aug 2024',
+    tag: 'AKADEMIK',
+    image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&q=80',
+    dateRange: '25 - 28 Agustus 2024',
     location: 'Aula Utama',
-    category: 'Akademik',
   },
   {
     id: '3',
-    title: 'Moklet Hackathon 2024',
-    image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600',
-    status: 'Pendaftaran Buka',
+    title: 'Moklet Hackathon',
+    tag: 'HACKATHON',
+    image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80',
     dateRange: '02 - 05 Sep 2024',
     location: 'Lab Komputer',
-    category: 'Akademik',
   },
 ];
 
 const DUMMY_ANNOUNCEMENTS = [
   {
     id: '1',
-    title: 'Jadwal Ujian Tengah Semester',
-    description: 'Informasi lengkap mengenai jadwal ujian tengah semester ganjil.',
-    icon: 'document-text-outline',
-    timeAgo: 'Tersisa 2 hari lagi',
-    type: 'Akademik',
+    title: 'Perubahan Jadwal Lomba',
+    description: 'Jadwal babak semifinal Moklet Cup 2024 diubah menjadi pukul 08.00 WIB.',
+    date: '12-11-2024',
+    statusColor: '#C62828',
+    statusBg: '#FFEBEE',
   },
   {
     id: '2',
-    title: 'Seminar Karir IT',
-    description: 'Wajib bagi kelas XII untuk mengikuti pengenalan industri digital.',
-    icon: 'megaphone-outline',
-    timeAgo: 'Baru saja',
-    type: 'Lainnya',
+    title: 'Pendaftaran Ditutup Sementara',
+    description: 'Pendaftaran cabang Futsal ditutup sementara hingga kuota tersedia.',
+    date: '17-11-2024',
+    statusColor: '#F57C00',
+    statusBg: '#FFF3E0',
+  },
+  {
+    id: '3',
+    title: 'Jadwal Technical Meeting',
+    description: 'Technical meeting akan dilaksanakan pada Kamis, 14 November 2024.',
+    date: '08-11-2024',
+    statusColor: '#2E7D32',
+    statusBg: '#E8F5E9',
+  },
+  {
+    id: '4',
+    title: 'Daftar Ulang Peserta Turnamen',
+    description: 'Peserta wajib melakukan daftar ulang sebelum tanggal 15 November 2024.',
+    date: '10-11-2024',
+    statusColor: '#1565C0',
+    statusBg: '#E3F2FD',
   },
 ];
 
 export default function HomeScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const username = userState.getNama();
-
-  // Filter events based on search query
-  const filteredEvents = DUMMY_EVENTS.filter((event) => {
-    return event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
-  // Filter announcements based on search query
-  const filteredAnnouncements = DUMMY_ANNOUNCEMENTS.filter((ann) => {
-    return ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ann.description.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const username = userState.getNama() || 'Siswa';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -98,134 +96,95 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.logoBadge}>
-              <Ionicons name="school" size={18} color={Colors.primary} />
+              <Ionicons name="school" size={16} color={Colors.primary} />
             </View>
-            <Text style={styles.headerTitle}>Moklet Event Center</Text>
+            <View>
+              <Text style={styles.headerGreeting}>Selamat datang,</Text>
+              <Text style={styles.headerName}>{username} 👋</Text>
+            </View>
           </View>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' }}
-            style={styles.avatar}
-          />
-        </View>
-
-        {/* Welcome Section */}
-        <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Halo, {username}!</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Ayo ikut serta dalam event seru di sekolah hari ini.
-          </Text>
-        </View>
-
-        {/* SEARCH BAR */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={20} color={Colors.textPlaceholder} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Cari event atau pengumuman..."
-            placeholderTextColor={Colors.textPlaceholder}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-
-
-
-        {/* EVENT AKTIF SECTION */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Event Aktif</Text>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={styles.sectionLink}>Lihat Semua</Text>
+          <TouchableOpacity style={styles.bellButton} activeOpacity={0.7}>
+            <Ionicons name="notifications-outline" size={22} color={Colors.textMain} />
+            <View style={styles.bellDot} />
           </TouchableOpacity>
         </View>
 
-        {filteredEvents.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToInterval={CARD_WIDTH + Spacing.base}
-            style={styles.eventsScroll}
-            contentContainerStyle={styles.eventsContainer}
+        {/* EVENT BANNER */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Event Terdekat</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/events')}
           >
-            {filteredEvents.map((event) => (
-              <TouchableOpacity key={event.id} style={styles.eventCard} activeOpacity={0.95}>
-                <View style={styles.imageWrapper}>
-                  <Image source={{ uri: event.image }} style={styles.eventImage} />
+            <Text style={styles.sectionLink}>Lihat Semua →</Text>
+          </TouchableOpacity>
+        </View>
 
-                  {/* Status Badge */}
-                  <View style={styles.statusBadge}>
-                    <View style={styles.statusDot} />
-                    <Text style={styles.statusText}>{event.status}</Text>
-                  </View>
-
-                  {/* Overlay Title */}
-                  <View style={styles.gradientOverlay}>
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                  </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={BANNER_WIDTH + Spacing.md}
+          contentContainerStyle={styles.bannerContainer}
+        >
+          {DUMMY_BANNERS.map((banner) => (
+            <TouchableOpacity
+              key={banner.id}
+              style={[styles.bannerCard, { width: BANNER_WIDTH }]}
+              activeOpacity={0.93}
+              onPress={() => router.push({ pathname: '/event-detail', params: { eventId: banner.id } })}
+            >
+              <Image source={{ uri: banner.image }} style={styles.bannerImage} />
+              {/* Dark overlay */}
+              <View style={styles.bannerOverlay} />
+              {/* Tag */}
+              <View style={styles.bannerTag}>
+                <Text style={styles.bannerTagText}>{banner.tag}</Text>
+              </View>
+              {/* Bottom info */}
+              <View style={styles.bannerBottom}>
+                <Text style={styles.bannerTitle}>{banner.title}</Text>
+                <View style={styles.bannerMeta}>
+                  <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.85)" />
+                  <Text style={styles.bannerMetaText}>{banner.dateRange}</Text>
                 </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-                {/* Card Info Details */}
-                <View style={styles.eventInfo}>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="calendar-outline" size={14} color={Colors.textSubtitle} />
-                    <Text style={styles.infoText}>{event.dateRange}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="pin-outline" size={14} color={Colors.textSubtitle} />
-                    <Text style={styles.infoText}>{event.location}</Text>
-                  </View>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{event.category}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={40} color={Colors.textPlaceholder} />
-            <Text style={styles.emptyStateText}>Tidak ada event untuk kategori ini</Text>
-          </View>
-        )}
-
-        {/* PENGUMUMAN TERBARU SECTION */}
+        {/* PENGUMUMAN TERBARU */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Pengumuman Terbaru</Text>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={styles.sectionLink}>Lainnya</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/arsip-pengumuman')}
+          >
+            <Text style={styles.sectionLink}>Lihat Semua →</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.announcementsList}>
-          {filteredAnnouncements.length > 0 ? (
-            filteredAnnouncements.map((ann) => {
-              const isAcademic = ann.type === 'Akademik';
-              const indicatorColor = isAcademic ? Colors.primary : '#FFA000'; // Red for academic, Orange for other
-              const bgIconColor = isAcademic ? '#FFEBEE' : '#FFF8E1'; // Soft pinkish/red or soft yellow
-
-              return (
-                <View key={ann.id} style={[styles.annCard, { borderLeftColor: indicatorColor }]}>
-                  <View style={[styles.annIconWrapper, { backgroundColor: bgIconColor }]}>
-                    <Ionicons
-                      name={ann.icon as any}
-                      size={20}
-                      color={indicatorColor}
-                    />
-                  </View>
-                  <View style={styles.annContent}>
-                    <Text style={styles.annTitle}>{ann.title}</Text>
-                    <Text style={styles.annDescription}>{ann.description}</Text>
-                    <Text style={styles.annTime}>{ann.timeAgo}</Text>
-                  </View>
+        <View style={styles.announceList}>
+          {DUMMY_ANNOUNCEMENTS.map((ann) => (
+            <TouchableOpacity key={ann.id} style={styles.annCard} activeOpacity={0.85}>
+              <View style={[styles.annDot, { backgroundColor: ann.statusBg }]}>
+                <View style={[styles.annDotInner, { backgroundColor: ann.statusColor }]} />
+              </View>
+              <View style={styles.annBody}>
+                <Text style={styles.annTitle} numberOfLines={1}>
+                  {ann.title}
+                </Text>
+                <Text style={styles.annDesc} numberOfLines={2}>
+                  {ann.description}
+                </Text>
+                <View style={styles.annFooter}>
+                  <Ionicons name="calendar-outline" size={11} color={Colors.textSubtitle} />
+                  <Text style={styles.annDate}>{ann.date}</Text>
                 </View>
-              );
-            })
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="notifications-off-outline" size={40} color={Colors.textPlaceholder} />
-              <Text style={styles.emptyStateText}>Tidak ada pengumuman untuk kategori ini</Text>
-            </View>
-          )}
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -235,22 +194,21 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.white,
-    paddingTop: Platform.OS === 'android' ? 32 : 0,
+    backgroundColor: '#F5F5F7',
+    paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: Spacing.xl,
-  },
+  scrollContainer: { flex: 1 },
+  scrollContent: { paddingBottom: 32 },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.base,
+    backgroundColor: Colors.white,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -258,68 +216,53 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   logoBadge: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: Radius.md,
-    backgroundColor: '#FFEBEE',
+    backgroundColor: Colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
+  headerGreeting: {
+    fontSize: 12,
+    color: Colors.textSubtitle,
+    fontWeight: '400',
+  },
+  headerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.primary,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.round,
-    backgroundColor: '#E0E0E0',
-  },
-  welcomeSection: {
-    paddingHorizontal: Spacing.xl,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.base,
-  },
-  welcomeTitle: {
-    fontSize: 24,
-    fontWeight: '700',
     color: Colors.textMain,
-    marginBottom: 4,
   },
-  welcomeSubtitle: {
-    fontSize: 13,
-    color: Colors.textSubtitle,
-    lineHeight: 18,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.white,
-    marginHorizontal: Spacing.xl,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    height: 48,
+    borderColor: '#F0F0F0',
   },
-  searchIcon: {
-    marginRight: Spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.textMain,
+  bellDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    borderWidth: 1.5,
+    borderColor: Colors.white,
   },
 
+  // Section header
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl,
-    marginBottom: Spacing.base,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
   sectionTitle: {
     fontSize: 17,
@@ -331,154 +274,124 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
   },
-  eventsScroll: {
-    marginBottom: Spacing.xl,
-  },
-  eventsContainer: {
+
+  // Banners
+  bannerContainer: {
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.base,
+    gap: Spacing.md,
   },
-  eventCard: {
-    width: CARD_WIDTH,
-    backgroundColor: Colors.white,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
+  bannerCard: {
+    height: 200,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  imageWrapper: {
-    height: 160,
-    width: '100%',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  eventImage: {
-    height: '100%',
+  bannerImage: {
     width: '100%',
-  },
-  statusBadge: {
+    height: '100%',
     position: 'absolute',
-    top: Spacing.sm,
-    left: Spacing.sm,
-    backgroundColor: '#E8F5E9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+  },
+  bannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+  },
+  bannerTag: {
+    position: 'absolute',
+    top: Spacing.md,
+    left: Spacing.md,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: Radius.round,
-    gap: 6,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#2E7D32',
+  bannerTagText: {
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2E7D32',
-  },
-  gradientOverlay: {
+  bannerBottom: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 60,
-    justifyContent: 'flex-end',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.4)', // Basic dark overlay for text readability
+    padding: Spacing.base,
   },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  bannerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
     color: Colors.white,
+    marginBottom: 4,
   },
-  eventInfo: {
-    padding: Spacing.md,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  infoRow: {
+  bannerMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  infoText: {
+  bannerMetaText: {
     fontSize: 12,
-    color: Colors.textSubtitle,
+    color: 'rgba(255,255,255,0.85)',
   },
-  categoryBadge: {
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.sm,
-  },
-  categoryBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.textSubtitle,
-  },
-  announcementsList: {
+
+  // Announcements
+  announceList: {
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   annCard: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-    borderLeftWidth: 4,
+    borderRadius: Radius.lg,
     padding: Spacing.md,
+    gap: Spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
-  annIconWrapper: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.md,
+  annDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
+    flexShrink: 0,
   },
-  annContent: {
+  annDotInner: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  annBody: {
     flex: 1,
   },
   annTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: Colors.textMain,
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  annDescription: {
+  annDesc: {
     fontSize: 12,
     color: Colors.textSubtitle,
-    lineHeight: 16,
-    marginBottom: 8,
+    lineHeight: 17,
+    marginBottom: 6,
   },
-  annTime: {
+  annFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  annDate: {
     fontSize: 11,
     color: Colors.textSubtitle,
     fontWeight: '500',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  emptyStateText: {
-    fontSize: 13,
-    color: Colors.textSubtitle,
   },
 });
