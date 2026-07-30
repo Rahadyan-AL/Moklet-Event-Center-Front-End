@@ -1,10 +1,11 @@
 // app/_layout.tsx
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from '../context/AuthContext';
 
 export default function RootLayout() {
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -19,11 +20,13 @@ export default function RootLayout() {
         <Stack.Screen name="verify-otp" />
         <Stack.Screen name="complete-profile" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(admin)" />
         <Stack.Screen name="event-detail" />
         <Stack.Screen name="daftar-lomba" />
         <Stack.Screen name="room-tim" />
         <Stack.Screen name="arsip-pengumuman" />
+        <Stack.Screen name="profile" />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }

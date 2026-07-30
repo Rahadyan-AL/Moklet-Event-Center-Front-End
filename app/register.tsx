@@ -16,17 +16,19 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius } from '../constants/theme';
 import MokletLogo from '../components/MokletLogo';
+import { useAuth } from '../context/AuthContext';
+import { ApiErrorResponse } from '../services/api';
 
 export default function RegisterScreen() {
+  const { register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
-    const schoolEmailRegex = /^[a-zA-Z0-9._%+-]+@(moklet\.sch\.id|student\.moklet\.sch\.id|smktelkom-mlg\.sch\.id|student\.smktelkom-mlg\.sch\.id)$/i;
     const generalEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const cleanEmail = email.trim();
 
@@ -34,8 +36,6 @@ export default function RegisterScreen() {
       newErrors.email = 'Email wajib diisi';
     } else if (!generalEmailRegex.test(cleanEmail)) {
       newErrors.email = 'Format email tidak valid';
-    } else if (!schoolEmailRegex.test(cleanEmail)) {
-      newErrors.email = 'Gunakan email sekolah (@moklet.sch.id / @smktelkom-mlg.sch.id)';
     }
 
     if (!password) {
@@ -50,15 +50,31 @@ export default function RegisterScreen() {
   const handleSendOTP = async () => {
     if (!validate()) return;
     setLoading(true);
+    setErrors({});
     const cleanEmail = email.trim().toLowerCase();
-    setTimeout(() => {
+
+    try {
+      await register(cleanEmail, password);
       setLoading(false);
+      // Pindah ke Halaman OTP dengan parameter email
       router.push({ pathname: '/verify-otp', params: { email: cleanEmail } });
-    }, 1200);
+    } catch (err: any) {
+      setLoading(false);
+      const apiErr = err as ApiErrorResponse;
+      const msg = apiErr.formattedMessage || 'Gagal mendaftar. Silakan coba lagi.';
+
+      if (msg.toLowerCase().includes('email') || msg.toLowerCase().includes('terdaftar')) {
+        setErrors({ email: msg });
+      } else if (msg.toLowerCase().includes('password')) {
+        setErrors({ password: msg });
+      } else {
+        setErrors({ general: msg });
+      }
+    }
   };
 
   const handleGoogleSignUp = () => {
-    Alert.alert('Google Sign Up', 'Fitur ini belum tersedia.');
+    Alert.alert('Google Sign In', 'Fitur Google Sign-In sedang disiapkan.');
   };
 
   return (
@@ -81,6 +97,13 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Selamat Datang di{'\n'}Moklet Event Center</Text>
           <Text style={styles.subtitle}>Masuk menggunakan email sekolah</Text>
 
+          {errors.general ? (
+            <View style={styles.generalErrorBox}>
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.error} />
+              <Text style={styles.generalErrorText}>{errors.general}</Text>
+            </View>
+          ) : null}
+
           {/* Email Input */}
           <View style={styles.inputWrapper}>
             <View style={[styles.inputContainer, errors.email ? styles.inputError : null]}>
@@ -90,7 +113,7 @@ export default function RegisterScreen() {
                 placeholder="nama@moklet.sch.id"
                 placeholderTextColor={Colors.textPlaceholder}
                 value={email}
-                onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
+                onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined, general: undefined })); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -105,10 +128,10 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed-outline" size={20} color={Colors.textSubtitle} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder="Password (minimal 8 karakter)"
                 placeholderTextColor={Colors.textPlaceholder}
                 value={password}
-                onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
+                onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined, general: undefined })); }}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
@@ -235,6 +258,20 @@ const styles = StyleSheet.create({
     color: Colors.textSubtitle,
     textAlign: 'center',
     marginBottom: Spacing.xl,
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  generalErrorText: {
+    fontSize: 13,
+    color: Colors.error,
+    flex: 1,
   },
   inputWrapper: {
     marginBottom: Spacing.md,

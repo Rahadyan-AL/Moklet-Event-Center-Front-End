@@ -1,5 +1,5 @@
 // app/(tabs)/events.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,62 +10,64 @@ import {
   ScrollView,
   Image,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Spacing, Radius } from '../../constants/theme';
+import api from '../../services/api';
 
-const EVENTS = [
-  {
-    id: '1',
-    title: 'Moklet Cup 2024',
-    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
-    dateRange: '05 - 09 Agustus 2024',
-    organizer: 'OSIS Moklet',
-    quotaFull: false,
-    isNew: false,
-    category: 'Olahraga',
-  },
-  {
-    id: '2',
-    title: 'Turnamen Basket Antar Sekolah',
-    image: 'https://images.unsplash.com/photo-1546519638405-a7cd81e7c2f7?w=800&q=80',
-    dateRange: '15 - 20 Agustus 2024',
-    organizer: 'Ekskul Basket',
-    quotaFull: true,
-    isNew: false,
-    category: 'Olahraga',
-  },
-  {
-    id: '3',
-    title: 'Lomba Robotik Nasional',
-    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80',
-    dateRange: '5 September 2024',
-    organizer: 'Tim IT Moklet',
-    quotaFull: false,
-    isNew: true,
-    category: 'Akademik',
-  },
-  {
-    id: '4',
-    title: 'Festival Seni Budaya Tahunan',
-    image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&q=80',
-    dateRange: '12 - 14 Oktober 2024',
-    organizer: 'OSIS Moklet',
-    quotaFull: false,
-    isNew: false,
-    category: 'Seni',
-  },
-];
+export interface EventItem {
+  id: string;
+  name: string;
+  description?: string;
+  eventDate: string;
+  status?: string;
+  bannerUrl?: string;
+}
 
 export default function EventsScreen() {
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const filtered = EVENTS.filter(
-    (e) =>
-      e.title.toLowerCase().includes(search.toLowerCase()) ||
-      e.organizer.toLowerCase().includes(search.toLowerCase())
+  const fetchEvents = async () => {
+    try {
+      const res: any = await api.get('/events');
+      const list = Array.isArray(res) ? res : res?.data || [];
+      setEvents(list);
+    } catch (err) {
+      console.warn('Error fetching events:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchEvents();
+  };
+
+  const filtered = events.filter((e) =>
+    e.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -80,68 +82,94 @@ export default function EventsScreen() {
           <Ionicons name="search-outline" size={18} color={Colors.textPlaceholder} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Cari event..."
+            placeholder="Cari nama event..."
             placeholderTextColor={Colors.textPlaceholder}
             value={search}
             onChangeText={setSearch}
           />
+          {search ? (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={18} color={Colors.textPlaceholder} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-        {filtered.map((event) => (
-          <TouchableOpacity
-            key={event.id}
-            style={styles.card}
-            activeOpacity={0.9}
-            onPress={() => router.push({ pathname: '/event-detail', params: { eventId: event.id } })}
-          >
-            {/* Image */}
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: event.image }} style={styles.eventImage} />
-              {event.isNew && (
-                <View style={styles.newBadge}>
-                  <Text style={styles.newBadgeText}>Baru</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
+        }
+      >
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loaderText}>Memuat daftar event...</Text>
+          </View>
+        ) : filtered.length > 0 ? (
+          filtered.map((event) => {
+            const isClosed = event.status === 'CLOSED';
+            return (
+              <TouchableOpacity
+                key={event.id}
+                style={styles.card}
+                activeOpacity={0.9}
+                onPress={() => router.push({ pathname: '/event-detail', params: { eventId: event.id } })}
+              >
+                {/* Image */}
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{
+                      uri:
+                        event.bannerUrl ||
+                        'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
+                    }}
+                    style={styles.eventImage}
+                  />
+                  {event.status ? (
+                    <View
+                      style={[
+                        styles.newBadge,
+                        { backgroundColor: isClosed ? '#757575' : Colors.primary },
+                      ]}
+                    >
+                      <Text style={styles.newBadgeText}>{event.status}</Text>
+                    </View>
+                  ) : null}
                 </View>
-              )}
-              {event.quotaFull && (
-                <View style={styles.quotaOverlay}>
-                  <Text style={styles.quotaOverlayText}>QUOTA PENUH</Text>
-                </View>
-              )}
-            </View>
 
-            {/* Body */}
-            <View style={styles.cardBody}>
-              <View style={styles.cardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{event.title}</Text>
-                  <View style={styles.dateRow}>
-                    <Ionicons name="calendar-outline" size={13} color={Colors.textSubtitle} />
-                    <Text style={styles.dateText}>{event.dateRange}</Text>
-                  </View>
-                  <View style={styles.orgRow}>
-                    <Ionicons name="person-outline" size={13} color={Colors.textSubtitle} />
-                    <Text style={styles.orgText}>{event.organizer}</Text>
+                {/* Body */}
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTop}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle}>{event.name}</Text>
+                      <View style={styles.dateRow}>
+                        <Ionicons name="calendar-outline" size={13} color={Colors.textSubtitle} />
+                        <Text style={styles.dateText}>{formatDate(event.eventDate)}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.registerBtn, isClosed && styles.closedBtn]}
+                      activeOpacity={0.8}
+                      onPress={() => router.push({ pathname: '/event-detail', params: { eventId: event.id } })}
+                    >
+                      <Text style={styles.registerBtnText}>{isClosed ? 'Detail' : 'Daftar'}</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-                {event.quotaFull ? (
-                  <View style={styles.quotaBadge}>
-                    <Text style={styles.quotaBadgeText}>Quota Full</Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.registerBtn}
-                    activeOpacity={0.8}
-                    onPress={() => router.push({ pathname: '/event-detail', params: { eventId: event.id } })}
-                  >
-                    <Text style={styles.registerBtnText}>Daftar Sekarang</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-clear-outline" size={48} color={Colors.textSubtitle} />
+            <Text style={styles.emptyTitle}>Tidak ada event ditemukan</Text>
+            <Text style={styles.emptySubtitle}>
+              {search ? 'Coba cari dengan kata kunci lain.' : 'Belum ada event yang dipublikasikan.'}
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -190,6 +218,30 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     gap: Spacing.base,
   },
+  loaderContainer: {
+    paddingVertical: 50,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loaderText: {
+    fontSize: 14,
+    color: Colors.textSubtitle,
+  },
+  emptyContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textMain,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: Colors.textSubtitle,
+  },
   card: {
     backgroundColor: Colors.white,
     borderRadius: Radius.xl,
@@ -213,7 +265,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.md,
     left: Spacing.md,
-    backgroundColor: '#2E7D32',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: Radius.round,
@@ -223,24 +274,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  quotaOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quotaOverlayText: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
   cardBody: {
     padding: Spacing.base,
   },
   cardTop: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: Spacing.md,
   },
   cardTitle: {
@@ -253,43 +292,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginBottom: 3,
   },
   dateText: {
     fontSize: 13,
     color: Colors.textSubtitle,
   },
-  orgRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  orgText: {
-    fontSize: 12,
-    color: Colors.textSubtitle,
-  },
-  quotaBadge: {
-    backgroundColor: '#FFEBEE',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    borderColor: '#FFCDD2',
-  },
-  quotaBadgeText: {
-    color: Colors.primary,
-    fontSize: 11,
-    fontWeight: '700',
-  },
   registerBtn: {
     backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: Radius.round,
+  },
+  closedBtn: {
+    backgroundColor: '#757575',
   },
   registerBtnText: {
     color: Colors.white,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
 });

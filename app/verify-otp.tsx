@@ -9,22 +9,27 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Platform,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
+import { ApiErrorResponse } from '../services/api';
 
 const OTP_LENGTH = 6;
 const COUNTDOWN_SECONDS = 45;
 
 export default function VerifyOTPScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
-  const displayEmail = email ?? 'budi@student.moklet.sch.id';
+  const displayEmail = email ?? '';
+  const { verifyOtp, requestOtp, refreshMe } = useAuth();
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const [canResend, setCanResend] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
@@ -45,6 +50,7 @@ export default function VerifyOTPScreen() {
   };
 
   const handleOtpChange = (value: string, index: number) => {
+    setErrorMsg(null);
     const digit = value.replace(/[^0-9]/g, '').slice(-1);
     const newOtp = [...otp];
     newOtp[index] = digit;
@@ -64,22 +70,43 @@ export default function VerifyOTPScreen() {
     }
   };
 
-  const handleResend = () => {
-    if (!canResend) return;
-    setOtp(Array(OTP_LENGTH).fill(''));
-    setCountdown(COUNTDOWN_SECONDS);
-    setCanResend(false);
-    inputRefs.current[0]?.focus();
+  const handleResend = async () => {
+    if (!canResend || !displayEmail) return;
+    setErrorMsg(null);
+    try {
+      await requestOtp(displayEmail);
+      setOtp(Array(OTP_LENGTH).fill(''));
+      setCountdown(COUNTDOWN_SECONDS);
+      setCanResend(false);
+      inputRefs.current[0]?.focus();
+      Alert.alert('Sukses', 'Kode OTP baru telah dikirimkan ke email Anda.');
+    } catch (err: any) {
+      const apiErr = err as ApiErrorResponse;
+      setErrorMsg(apiErr.formattedMessage || 'Gagal mengirim ulang OTP.');
+    }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const otpCode = otp.join('');
-    if (otpCode.length < OTP_LENGTH) return;
+    if (otpCode.length < OTP_LENGTH || !displayEmail) return;
     setLoading(true);
-    setTimeout(() => {
+    setErrorMsg(null);
+
+    try {
+      await verifyOtp(displayEmail, otpCode);
+      const currentUser = await refreshMe();
       setLoading(false);
-      router.replace('/complete-profile');
-    }, 1500);
+
+      if (currentUser && currentUser.student) {
+        router.replace('/(tabs)/home');
+      } else {
+        router.replace('/complete-profile');
+      }
+    } catch (err: any) {
+      setLoading(false);
+      const apiErr = err as ApiErrorResponse;
+      setErrorMsg(apiErr.formattedMessage || 'Kode OTP tidak valid atau telah kedaluwarsa.');
+    }
   };
 
   const isComplete = otp.every((d) => d !== '');
@@ -107,6 +134,13 @@ export default function VerifyOTPScreen() {
           <Text style={styles.emailHighlight}>{displayEmail}</Text>
         </Text>
 
+        {errorMsg ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={18} color={Colors.error} />
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        ) : null}
+
         {/* OTP Card */}
         <View style={styles.otpCard}>
           {/* 6 OTP Boxes */}
@@ -118,6 +152,7 @@ export default function VerifyOTPScreen() {
                 style={[
                   styles.otpBox,
                   digit ? styles.otpBoxFilled : null,
+                  errorMsg ? styles.otpBoxError : null,
                 ]}
                 value={digit}
                 onChangeText={(v) => handleOtpChange(v, index)}
@@ -215,11 +250,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSubtitle,
     lineHeight: 22,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   emailHighlight: {
     color: Colors.primary,
     fontWeight: '700',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  errorText: {
+    fontSize: 13,
+    color: Colors.error,
+    flex: 1,
   },
   otpCard: {
     backgroundColor: Colors.primaryLight,
@@ -247,6 +296,9 @@ const styles = StyleSheet.create({
   },
   otpBoxFilled: {
     borderColor: Colors.primary,
+  },
+  otpBoxError: {
+    borderColor: Colors.error,
   },
   resendContainer: {
     alignItems: 'center',

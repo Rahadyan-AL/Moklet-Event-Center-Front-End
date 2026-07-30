@@ -1,5 +1,5 @@
 // app/(tabs)/home.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,84 +12,88 @@ import {
   Dimensions,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Spacing, Radius } from '../../constants/theme';
-import { userState } from '../../constants/userState';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const BANNER_WIDTH = width - Spacing.xl * 2;
 
-const DUMMY_BANNERS = [
-  {
-    id: '1',
-    title: 'Moklet Cup 2024',
-    tag: 'MOKLET CUP',
-    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
-    dateRange: '15 - 20 Agustus 2024',
-    location: 'Sport Hall SMKN 4 Malang',
-  },
-  {
-    id: '2',
-    title: 'Pekan Raya Akademik',
-    tag: 'AKADEMIK',
-    image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&q=80',
-    dateRange: '25 - 28 Agustus 2024',
-    location: 'Aula Utama',
-  },
-  {
-    id: '3',
-    title: 'Moklet Hackathon',
-    tag: 'HACKATHON',
-    image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80',
-    dateRange: '02 - 05 Sep 2024',
-    location: 'Lab Komputer',
-  },
-];
+export interface RealEvent {
+  id: string;
+  name: string;
+  description?: string;
+  eventDate: string;
+  status?: string;
+  bannerUrl?: string;
+}
 
-const DUMMY_ANNOUNCEMENTS = [
-  {
-    id: '1',
-    title: 'Perubahan Jadwal Lomba',
-    description: 'Jadwal babak semifinal Moklet Cup 2024 diubah menjadi pukul 08.00 WIB.',
-    date: '12-11-2024',
-    statusColor: '#C62828',
-    statusBg: '#FFEBEE',
-  },
-  {
-    id: '2',
-    title: 'Pendaftaran Ditutup Sementara',
-    description: 'Pendaftaran cabang Futsal ditutup sementara hingga kuota tersedia.',
-    date: '17-11-2024',
-    statusColor: '#F57C00',
-    statusBg: '#FFF3E0',
-  },
-  {
-    id: '3',
-    title: 'Jadwal Technical Meeting',
-    description: 'Technical meeting akan dilaksanakan pada Kamis, 14 November 2024.',
-    date: '08-11-2024',
-    statusColor: '#2E7D32',
-    statusBg: '#E8F5E9',
-  },
-  {
-    id: '4',
-    title: 'Daftar Ulang Peserta Turnamen',
-    description: 'Peserta wajib melakukan daftar ulang sebelum tanggal 15 November 2024.',
-    date: '10-11-2024',
-    statusColor: '#1565C0',
-    statusBg: '#E3F2FD',
-  },
-];
+export interface RealAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  eventId?: string;
+}
 
 export default function HomeScreen() {
-  const username = userState.getNama() || 'Dimas Saputra';
+  const { user, logout } = useAuth();
+  const studentName = user?.student?.name || user?.email?.split('@')[0] || 'Siswa';
+  const classLabel = user?.student?.class ? `${user.student.class.grade} ${user.student.class.name}` : (user?.role || 'Siswa');
+
+  const [banners, setBanners] = useState<RealEvent[]>([]);
+  const [announcements, setAnnouncements] = useState<RealAnnouncement[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    async function fetchData() {
+      // Fetch Events
+      try {
+        setLoadingEvents(true);
+        const res: any = await api.get('/events?limit=5');
+        const list = Array.isArray(res) ? res : res?.data || [];
+        setBanners(list);
+      } catch (err) {
+        console.warn('Error fetching events in Home:', err);
+      } finally {
+        setLoadingEvents(false);
+      }
+
+      // Fetch Announcements
+      try {
+        setLoadingAnnouncements(true);
+        const resAnn: any = await api.get('/announcements?limit=5');
+        const annList = Array.isArray(resAnn) ? resAnn : resAnn?.data || [];
+        setAnnouncements(annList);
+      } catch (err) {
+        console.warn('Error fetching announcements in Home:', err);
+      } finally {
+        setLoadingAnnouncements(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const handleLogout = async () => {
     setShowLogoutModal(false);
-    router.replace('/login');
+    await logout();
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   return (
@@ -103,13 +107,19 @@ export default function HomeScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarBorder}>
             <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80' }}
+              source={{
+                uri: user?.student?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80',
+              }}
               style={styles.avatarImage}
             />
           </View>
           <View style={styles.profileTextContainer}>
-            <Text style={styles.profileName}>{username}</Text>
-            <Text style={styles.profileSubtitle}>XII RPL 1 • Angkatan 2024</Text>
+            <Text style={styles.profileName} numberOfLines={1}>
+              {studentName}
+            </Text>
+            <Text style={styles.profileSubtitle} numberOfLines={1}>
+              {classLabel}
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.logoutIconButton}
@@ -131,38 +141,54 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={BANNER_WIDTH + Spacing.md}
-          contentContainerStyle={styles.bannerContainer}
-        >
-          {DUMMY_BANNERS.map((banner) => (
-            <TouchableOpacity
-              key={banner.id}
-              style={[styles.bannerCard, { width: BANNER_WIDTH }]}
-              activeOpacity={0.93}
-              onPress={() => router.push({ pathname: '/event-detail', params: { eventId: banner.id } })}
-            >
-              <Image source={{ uri: banner.image }} style={styles.bannerImage} />
-              {/* Dark overlay */}
-              <View style={styles.bannerOverlay} />
-              {/* Tag */}
-              <View style={styles.bannerTag}>
-                <Text style={styles.bannerTagText}>{banner.tag}</Text>
-              </View>
-              {/* Bottom info */}
-              <View style={styles.bannerBottom}>
-                <Text style={styles.bannerTitle}>{banner.title}</Text>
-                <View style={styles.bannerMeta}>
-                  <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.85)" />
-                  <Text style={styles.bannerMetaText}>{banner.dateRange}</Text>
+        {loadingEvents ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+            <Text style={styles.loaderText}>Memuat event...</Text>
+          </View>
+        ) : banners.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={BANNER_WIDTH + Spacing.md}
+            contentContainerStyle={styles.bannerContainer}
+          >
+            {banners.map((banner) => (
+              <TouchableOpacity
+                key={banner.id}
+                style={[styles.bannerCard, { width: BANNER_WIDTH }]}
+                activeOpacity={0.93}
+                onPress={() => router.push({ pathname: '/event-detail', params: { eventId: banner.id } })}
+              >
+                <Image
+                  source={{
+                    uri: banner.bannerUrl || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
+                  }}
+                  style={styles.bannerImage}
+                />
+                {/* Dark overlay */}
+                <View style={styles.bannerOverlay} />
+                {/* Tag */}
+                <View style={styles.bannerTag}>
+                  <Text style={styles.bannerTagText}>{banner.status || 'EVENT'}</Text>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                {/* Bottom info */}
+                <View style={styles.bannerBottom}>
+                  <Text style={styles.bannerTitle} numberOfLines={1}>{banner.name}</Text>
+                  <View style={styles.bannerMeta}>
+                    <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.85)" />
+                    <Text style={styles.bannerMetaText}>{formatDate(banner.eventDate)}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Belum ada event tersedia saat ini.</Text>
+          </View>
+        )}
 
         {/* PENGUMUMAN TERBARU SECTION */}
         <View style={styles.sectionHeader}>
@@ -175,28 +201,39 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.announceList}>
-          {DUMMY_ANNOUNCEMENTS.map((ann) => (
-            <TouchableOpacity key={ann.id} style={styles.annCard} activeOpacity={0.85}>
-              <View style={[styles.annDot, { backgroundColor: ann.statusBg }]}>
-                <View style={[styles.annDotInner, { backgroundColor: ann.statusColor }]} />
-              </View>
-              <View style={styles.annBody}>
-                <Text style={styles.annTitle} numberOfLines={1}>
-                  {ann.title}
-                </Text>
-                <Text style={styles.annDesc} numberOfLines={2}>
-                  {ann.description}
-                </Text>
-                <View style={styles.annFooter}>
-                  <Ionicons name="calendar-outline" size={11} color={Colors.textSubtitle} />
-                  <Text style={styles.annDate}>{ann.date}</Text>
+        {loadingAnnouncements ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+            <Text style={styles.loaderText}>Memuat pengumuman...</Text>
+          </View>
+        ) : announcements.length > 0 ? (
+          <View style={styles.announceList}>
+            {announcements.map((ann) => (
+              <TouchableOpacity key={ann.id} style={styles.annCard} activeOpacity={0.85}>
+                <View style={[styles.annDot, { backgroundColor: '#FFEBEE' }]}>
+                  <View style={[styles.annDotInner, { backgroundColor: Colors.primary }]} />
                 </View>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-            </TouchableOpacity>
-          ))}
-        </View>
+                <View style={styles.annBody}>
+                  <Text style={styles.annTitle} numberOfLines={1}>
+                    {ann.title}
+                  </Text>
+                  <Text style={styles.annDesc} numberOfLines={2}>
+                    {ann.content}
+                  </Text>
+                  <View style={styles.annFooter}>
+                    <Ionicons name="calendar-outline" size={11} color={Colors.textSubtitle} />
+                    <Text style={styles.annDate}>{formatDate(ann.createdAt)}</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Belum ada pengumuman terbaru.</Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Logout Modal */}
@@ -321,6 +358,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.primary,
     fontWeight: '600',
+  },
+
+  // Loaders & Empty
+  loaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
+  loaderText: {
+    fontSize: 13,
+    color: Colors.textSubtitle,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: Spacing.xl,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: Colors.textSubtitle,
   },
 
   // Banners

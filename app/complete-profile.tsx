@@ -1,5 +1,5 @@
 // app/complete-profile.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,48 +11,66 @@ import {
   FlatList,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius } from '../constants/theme';
-import { userState } from '../constants/userState';
+import { useAuth } from '../context/AuthContext';
+import api, { ApiErrorResponse } from '../services/api';
 
-// ==== Sample Data ====
-const ANGKATAN_OPTIONS = ['2021', '2022', '2023', '2024', '2025'];
-const KELAS_OPTIONS = [
-  'X RPL 1', 'X RPL 2', 'X RPL 3',
-  'XI RPL 1', 'XI RPL 2', 'XI RPL 3',
-  'XII RPL 1', 'XII RPL 2', 'XII RPL 3',
-];
-const NAMA_OPTIONS = [
-  'Andi Pratama', 'Budi Santoso', 'Citra Dewi', 'Dian Kurniawan',
-  'Eka Putri', 'Fajar Ramadhan', 'Gilang Nugraha', 'Hana Maharani',
-  'Ilham Saputra', 'Julia Wati', 'Kevin Ardiansyah', 'Lina Marlina',
-];
+export interface CandidateStudent {
+  id: string;
+  name: string;
+  nis: string;
+  angkatan?: string | number;
+  classId?: string;
+  class?: {
+    id: string;
+    grade: string;
+    name: string;
+  };
+}
 
 // ==== Dropdown Component ====
 type DropdownFieldProps = {
   label: string;
   placeholder: string;
-  options: string[];
+  options: { label: string; value: string }[];
   value: string;
-  onSelect: (v: string) => void;
+  onSelect: (val: string, label: string) => void;
   hasError?: boolean;
+  disabled?: boolean;
 };
 
-function DropdownField({ label, placeholder, options, value, onSelect, hasError }: DropdownFieldProps) {
+function DropdownField({
+  label,
+  placeholder,
+  options,
+  value,
+  onSelect,
+  hasError,
+  disabled = false,
+}: DropdownFieldProps) {
   const [visible, setVisible] = useState(false);
+
+  const selectedLabel = options.find((o) => o.value === value)?.label || value;
 
   return (
     <View style={dropStyles.wrapper}>
       <Text style={dropStyles.label}>{label}</Text>
       <TouchableOpacity
-        style={[dropStyles.trigger, hasError ? dropStyles.triggerError : null]}
-        onPress={() => setVisible(true)}
+        style={[
+          dropStyles.trigger,
+          hasError ? dropStyles.triggerError : null,
+          disabled ? dropStyles.triggerDisabled : null,
+        ]}
+        onPress={() => !disabled && setVisible(true)}
         activeOpacity={0.8}
+        disabled={disabled}
       >
         <Text style={[dropStyles.triggerText, !value ? dropStyles.placeholder : null]}>
-          {value || placeholder}
+          {selectedLabel || placeholder}
         </Text>
         <Ionicons name="chevron-down" size={18} color={Colors.textSubtitle} />
       </TouchableOpacity>
@@ -70,25 +88,34 @@ function DropdownField({ label, placeholder, options, value, onSelect, hasError 
           <View style={dropStyles.sheet}>
             <View style={dropStyles.handle} />
             <Text style={dropStyles.sheetTitle}>Pilih {label}</Text>
-            <FlatList
-              data={options}
-              keyExtractor={(item) => item}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[dropStyles.option, item === value ? dropStyles.optionActive : null]}
-                  onPress={() => { onSelect(item); setVisible(false); }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[dropStyles.optionText, item === value ? dropStyles.optionTextActive : null]}>
-                    {item}
-                  </Text>
-                  {item === value && (
-                    <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
+            {options.length > 0 ? (
+              <FlatList
+                data={options}
+                keyExtractor={(item) => item.value}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[dropStyles.option, item.value === value ? dropStyles.optionActive : null]}
+                    onPress={() => {
+                      onSelect(item.value, item.label);
+                      setVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[dropStyles.optionText, item.value === value ? dropStyles.optionTextActive : null]}>
+                      {item.label}
+                    </Text>
+                    {item.value === value && (
+                      <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+            ) : (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: Colors.textSubtitle }}>Tidak ada opsi tersedia</Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -116,6 +143,7 @@ const dropStyles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   triggerError: { borderColor: Colors.error },
+  triggerDisabled: { backgroundColor: '#F5F5F5', opacity: 0.6 },
   triggerText: { fontSize: 14, color: Colors.textMain, flex: 1 },
   placeholder: { color: Colors.textPlaceholder },
   overlay: { flex: 1, justifyContent: 'flex-end' },
@@ -161,29 +189,101 @@ const dropStyles = StyleSheet.create({
 
 // ==== Main Screen ====
 export default function CompleteProfileScreen() {
-  const [angkatan, setAngkatan] = useState('');
-  const [kelas, setKelas] = useState('');
-  const [nama, setNama] = useState('');
+  const { bindIdentity } = useAuth();
+  
+  const [candidates, setCandidates] = useState<CandidateStudent[]>([]);
+  const [fetchingCandidates, setFetchingCandidates] = useState(true);
+
+  const [selectedAngkatan, setSelectedAngkatan] = useState('');
+  const [selectedKelas, setSelectedKelas] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedStudentName, setSelectedStudentName] = useState('');
+
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ angkatan?: boolean; kelas?: boolean; nama?: boolean }>({});
+  const [errors, setErrors] = useState<{ angkatan?: boolean; kelas?: boolean; nama?: boolean; general?: string }>({});
+
+  // Fetch candidates dari backend GET /students/bind-candidates
+  useEffect(() => {
+    async function loadCandidates() {
+      setFetchingCandidates(true);
+      try {
+        const res: any = await api.get('/students/bind-candidates');
+        const list: CandidateStudent[] = Array.isArray(res) ? res : res?.data || [];
+        setCandidates(list);
+      } catch (err: any) {
+        console.warn('Error loading bind candidates:', err);
+        setErrors((e) => ({ ...e, general: 'Gagal memuat data kandidat siswa. Pastikan koneksi aman.' }));
+      } finally {
+        setFetchingCandidates(false);
+      }
+    }
+    loadCandidates();
+  }, []);
+
+  // Derive Opsi Angkatan
+  const angkatanOptions = Array.from(
+    new Set(
+      candidates
+        .map((c) => String(c.angkatan || c.class?.grade || 'Lainnya'))
+        .filter(Boolean)
+    )
+  ).map((a) => ({ label: `Angkatan / Tingkat ${a}`, value: a }));
+
+  // Derive Opsi Kelas berdasarkan Angkatan yang dipilih
+  const filteredCandidatesForKelas = candidates.filter((c) => {
+    if (!selectedAngkatan) return true;
+    const ang = String(c.angkatan || c.class?.grade || 'Lainnya');
+    return ang === selectedAngkatan;
+  });
+
+  const kelasOptions = Array.from(
+    new Set(
+      filteredCandidatesForKelas
+        .map((c) => {
+          if (c.class) {
+            return `${c.class.grade} ${c.class.name}`.trim();
+          }
+          return c.classId || 'Kelas Tidak Diketahui';
+        })
+        .filter(Boolean)
+    )
+  ).map((k) => ({ label: k, value: k }));
+
+  // Derive Opsi Nama Siswa berdasarkan Kelas & Angkatan terpilih
+  const filteredStudents = filteredCandidatesForKelas.filter((c) => {
+    if (!selectedKelas) return true;
+    const fullClass = c.class ? `${c.class.grade} ${c.class.name}`.trim() : c.classId;
+    return fullClass === selectedKelas;
+  });
+
+  const studentOptions = filteredStudents.map((s) => ({
+    label: `${s.name} (${s.nis || 'NIS -'})`,
+    value: s.id,
+  }));
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    if (!angkatan) newErrors.angkatan = true;
-    if (!kelas) newErrors.kelas = true;
-    if (!nama) newErrors.nama = true;
+    if (!selectedAngkatan && angkatanOptions.length > 0) newErrors.angkatan = true;
+    if (!selectedKelas && kelasOptions.length > 0) newErrors.kelas = true;
+    if (!selectedStudentId) newErrors.nama = true;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
     setLoading(true);
-    userState.setNama(nama);
-    setTimeout(() => {
+    setErrors({});
+
+    try {
+      await bindIdentity(selectedStudentId);
       setLoading(false);
-      router.replace('/home');
-    }, 1500);
+      router.replace('/(tabs)/home');
+    } catch (err: any) {
+      setLoading(false);
+      const apiErr = err as ApiErrorResponse;
+      setErrors({ general: apiErr.formattedMessage || 'Gagal menautkan identitas siswa.' });
+    }
   };
 
   return (
@@ -194,47 +294,82 @@ export default function CompleteProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>Lengkapi Profil Kamu</Text>
-        <Text style={styles.subtitle}>Data ini akan digunakan untuk pendaftaran event</Text>
+        <Text style={styles.subtitle}>Pilih identitas siswa kamu dari data master sekolah</Text>
 
-        <View style={styles.form}>
-          <DropdownField
-            label="Angkatan"
-            placeholder="Pilih Angkatan"
-            options={ANGKATAN_OPTIONS}
-            value={angkatan}
-            onSelect={(v) => { setAngkatan(v); setErrors((e) => ({ ...e, angkatan: false })); }}
-            hasError={errors.angkatan}
-          />
-          {errors.angkatan && <Text style={styles.errorText}>Angkatan wajib dipilih</Text>}
+        {errors.general ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={18} color={Colors.error} />
+            <Text style={styles.errorBoxText}>{errors.general}</Text>
+          </View>
+        ) : null}
 
-          <DropdownField
-            label="Kelas"
-            placeholder="Pilih Kelas"
-            options={KELAS_OPTIONS}
-            value={kelas}
-            onSelect={(v) => { setKelas(v); setErrors((e) => ({ ...e, kelas: false })); }}
-            hasError={errors.kelas}
-          />
-          {errors.kelas && <Text style={styles.errorText}>Kelas wajib dipilih</Text>}
+        {fetchingCandidates ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={Colors.primary} size="large" />
+            <Text style={styles.loadingText}>Memuat data siswa...</Text>
+          </View>
+        ) : (
+          <View style={styles.form}>
+            {angkatanOptions.length > 0 && (
+              <>
+                <DropdownField
+                  label="Angkatan / Tingkat"
+                  placeholder="Pilih Angkatan / Tingkat"
+                  options={angkatanOptions}
+                  value={selectedAngkatan}
+                  onSelect={(val) => {
+                    setSelectedAngkatan(val);
+                    setSelectedKelas('');
+                    setSelectedStudentId('');
+                    setSelectedStudentName('');
+                    setErrors((e) => ({ ...e, angkatan: false, general: undefined }));
+                  }}
+                  hasError={errors.angkatan}
+                />
+                {errors.angkatan && <Text style={styles.errorText}>Angkatan wajib dipilih</Text>}
+              </>
+            )}
 
-          <DropdownField
-            label="Nama"
-            placeholder="Pilih Nama Siswa"
-            options={NAMA_OPTIONS}
-            value={nama}
-            onSelect={(v) => { setNama(v); setErrors((e) => ({ ...e, nama: false })); }}
-            hasError={errors.nama}
-          />
-          {errors.nama && <Text style={styles.errorText}>Nama wajib dipilih</Text>}
-        </View>
+            <DropdownField
+              label="Kelas"
+              placeholder={selectedAngkatan ? 'Pilih Kelas' : 'Pilih Angkatan terlebih dahulu'}
+              options={kelasOptions}
+              value={selectedKelas}
+              disabled={angkatanOptions.length > 0 && !selectedAngkatan}
+              onSelect={(val) => {
+                setSelectedKelas(val);
+                setSelectedStudentId('');
+                setSelectedStudentName('');
+                setErrors((e) => ({ ...e, kelas: false, general: undefined }));
+              }}
+              hasError={errors.kelas}
+            />
+            {errors.kelas && <Text style={styles.errorText}>Kelas wajib dipilih</Text>}
+
+            <DropdownField
+              label="Nama Siswa"
+              placeholder={selectedKelas ? 'Pilih Nama Siswa' : 'Pilih Kelas terlebih dahulu'}
+              options={studentOptions}
+              value={selectedStudentId}
+              disabled={!selectedKelas && kelasOptions.length > 0}
+              onSelect={(val, label) => {
+                setSelectedStudentId(val);
+                setSelectedStudentName(label);
+                setErrors((e) => ({ ...e, nama: false, general: undefined }));
+              }}
+              hasError={errors.nama}
+            />
+            {errors.nama && <Text style={styles.errorText}>Nama siswa wajib dipilih</Text>}
+          </View>
+        )}
       </ScrollView>
 
       {/* Sticky Bottom Button */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.saveButton, loading ? styles.saveButtonDisabled : null]}
+          style={[styles.saveButton, (loading || fetchingCandidates) ? styles.saveButtonDisabled : null]}
           onPress={handleSave}
-          disabled={loading}
+          disabled={loading || fetchingCandidates}
           activeOpacity={0.85}
         >
           {loading ? (
@@ -270,9 +405,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSubtitle,
     lineHeight: 22,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   form: { gap: 0 },
+  loadingBox: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.textSubtitle,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  errorBoxText: {
+    fontSize: 13,
+    color: Colors.error,
+    flex: 1,
+  },
   errorText: {
     fontSize: 12,
     color: Colors.error,

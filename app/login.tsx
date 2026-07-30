@@ -17,16 +17,17 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius } from '../constants/theme';
 import MokletLogo from '../components/MokletLogo';
-import { userState } from '../constants/userState';
+import { useAuth } from '../context/AuthContext';
+import api, { ApiErrorResponse } from '../services/api';
 
 export default function LoginScreen() {
+  const { login, refreshMe } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
 
   // Input Focus States
   const [isEmailFocused, setIsEmailFocused] = useState(false);
@@ -39,8 +40,6 @@ export default function LoginScreen() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
 
-  // Validation regex for school domains
-  const schoolEmailRegex = /^[a-zA-Z0-9._%+-]+@(moklet\.sch\.id|student\.moklet\.sch\.id|smktelkom-mlg\.sch\.id|student\.smktelkom-mlg\.sch\.id)$/i;
   const generalEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const validate = () => {
@@ -51,8 +50,6 @@ export default function LoginScreen() {
       newErrors.email = 'Email wajib diisi';
     } else if (!generalEmailRegex.test(cleanEmail)) {
       newErrors.email = 'Format email tidak valid';
-    } else if (!schoolEmailRegex.test(cleanEmail)) {
-      newErrors.email = 'Gunakan email sekolah (@moklet.sch.id / @smktelkom-mlg.sch.id)';
     }
 
     if (!password) {
@@ -68,29 +65,50 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validate()) return;
     setLoading(true);
+    setErrors({});
 
     const cleanEmail = email.trim().toLowerCase();
-    userState.setEmail(cleanEmail);
-    userState.setLoggedIn(true);
 
-    setTimeout(() => {
+    try {
+      await login(cleanEmail, password);
+      // Fetch data me terbaru untuk cek status verifikasi & student binding
+      const currentUser = await refreshMe();
       setLoading(false);
-      router.replace('/(tabs)/home');
-    }, 1200);
+
+      if (currentUser) {
+        if (currentUser.isEmailVerified === false) {
+          router.replace({ pathname: '/verify-otp', params: { email: cleanEmail } });
+        } else if (currentUser.role === 'ADMIN_KESISWAAN') {
+          // Admin: arahkan ke dashboard admin
+          router.replace('/(admin)/dashboard');
+        } else if (!currentUser.student) {
+          router.replace('/complete-profile');
+        } else {
+          router.replace('/(tabs)/home');
+        }
+      } else {
+        router.replace('/(tabs)/home');
+      }
+    } catch (err: any) {
+      setLoading(false);
+      const apiErr = err as ApiErrorResponse;
+      const msg = apiErr.formattedMessage || 'Email atau password salah';
+
+      if (msg.toLowerCase().includes('email')) {
+        setErrors({ email: msg });
+      } else if (msg.toLowerCase().includes('password')) {
+        setErrors({ password: msg });
+      } else {
+        setErrors({ general: msg });
+      }
+    }
   };
 
   const handleGoogleSignIn = () => {
-    setGoogleLoading(true);
-    setTimeout(() => {
-      setGoogleLoading(false);
-      const sampleGoogleEmail = 'siswa.google@student.moklet.sch.id';
-      userState.setEmail(sampleGoogleEmail);
-      userState.setLoggedIn(true);
-      router.replace('/(tabs)/home');
-    }, 1500);
+    Alert.alert('Google Sign In', 'Fitur Google Sign-In sedang disiapkan.');
   };
 
-  const handleSendResetPassword = () => {
+  const handleSendResetPassword = async () => {
     const cleanForgotEmail = forgotEmail.trim();
     if (!cleanForgotEmail) {
       setForgotEmailError('Email wajib diisi');
@@ -103,10 +121,16 @@ export default function LoginScreen() {
 
     setForgotLoading(true);
     setForgotEmailError('');
-    setTimeout(() => {
+
+    try {
+      await api.post('/auth/password/reset-request', { email: cleanForgotEmail });
       setForgotLoading(false);
       setForgotSuccess(true);
-    }, 1200);
+    } catch (err: any) {
+      setForgotLoading(false);
+      const apiErr = err as ApiErrorResponse;
+      setForgotEmailError(apiErr.formattedMessage || 'Gagal mengirim instruksi reset password.');
+    }
   };
 
   const closeForgotModal = () => {
@@ -137,6 +161,13 @@ export default function LoginScreen() {
           <Text style={styles.title}>Selamat Datang di{'\n'}Moklet Event Center</Text>
           <Text style={styles.subtitle}>Masuk menggunakan email sekolah Anda</Text>
 
+          {errors.general ? (
+            <View style={styles.generalErrorBox}>
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.error} />
+              <Text style={styles.generalErrorText}>{errors.general}</Text>
+            </View>
+          ) : null}
+
           {/* Email Input */}
           <View style={styles.inputWrapper}>
             <Text style={styles.inputLabel}>Email Sekolah</Text>
@@ -160,7 +191,7 @@ export default function LoginScreen() {
                 value={email}
                 onChangeText={(v) => {
                   setEmail(v);
-                  if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
+                  if (errors.email) setErrors((e) => ({ ...e, email: undefined, general: undefined }));
                 }}
                 onFocus={() => setIsEmailFocused(true)}
                 onBlur={() => setIsEmailFocused(false)}
@@ -172,7 +203,7 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setEmail('');
-                    setErrors((e) => ({ ...e, email: undefined }));
+                    setErrors((e) => ({ ...e, email: undefined, general: undefined }));
                   }}
                   style={styles.clearIcon}
                 >
@@ -211,7 +242,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={(v) => {
                   setPassword(v);
-                  if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
+                  if (errors.password) setErrors((e) => ({ ...e, password: undefined, general: undefined }));
                 }}
                 onFocus={() => setIsPasswordFocused(true)}
                 onBlur={() => setIsPasswordFocused(false)}
@@ -266,7 +297,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
             onPress={handleLogin}
-            disabled={loading || googleLoading}
+            disabled={loading}
             activeOpacity={0.85}
           >
             {loading ? (
@@ -285,19 +316,13 @@ export default function LoginScreen() {
 
           {/* Google Button */}
           <TouchableOpacity
-            style={[styles.googleButton, googleLoading && styles.primaryButtonDisabled]}
+            style={styles.googleButton}
             onPress={handleGoogleSignIn}
-            disabled={loading || googleLoading}
+            disabled={loading}
             activeOpacity={0.85}
           >
-            {googleLoading ? (
-              <ActivityIndicator color={Colors.primary} size="small" />
-            ) : (
-              <>
-                <GoogleColorIcon />
-                <Text style={styles.googleButtonText}>Sign in using Google</Text>
-              </>
-            )}
+            <GoogleColorIcon />
+            <Text style={styles.googleButtonText}>Sign in using Google</Text>
           </TouchableOpacity>
 
           {/* Register Link */}
@@ -395,7 +420,6 @@ export default function LoginScreen() {
   );
 }
 
-// Google "G" icon component
 function GoogleColorIcon() {
   return (
     <View style={gStyles.wrapper}>
@@ -458,6 +482,20 @@ const styles = StyleSheet.create({
     color: Colors.textSubtitle,
     textAlign: 'center',
     marginBottom: Spacing.xl,
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  generalErrorText: {
+    fontSize: 13,
+    color: Colors.error,
+    flex: 1,
   },
   inputWrapper: {
     marginBottom: Spacing.base,
