@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Modal,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -105,7 +104,7 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = () => {
-    Alert.alert('Google Sign In', 'Fitur Google Sign-In sedang disiapkan.');
+    router.push({ pathname: '/google-oauth', params: { flow: 'login' } });
   };
 
   const handleSendResetPassword = async () => {
@@ -214,7 +213,7 @@ export default function LoginScreen() {
             {errors.email ? (
               <View style={styles.errorRow}>
                 <Ionicons name="alert-circle-outline" size={14} color={Colors.error} />
-                <Text style={styles.errorText}>{errors.email}</Text>
+                  <Text style={styles.googleButtonText}>Masuk dengan Google</Text>
               </View>
             ) : null}
           </View>

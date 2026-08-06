@@ -293,8 +293,8 @@ export default function CompleteProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Lengkapi Profil Kamu</Text>
-        <Text style={styles.subtitle}>Pilih identitas siswa kamu dari data master sekolah</Text>
+        <Text style={styles.title}>Cari Data Anda</Text>
+        <Text style={styles.subtitle}>Pilih identitas siswa kamu dari data sekolah lalu periksa kembali sebelum menyimpan.</Text>
 
         {errors.general ? (
           <View style={styles.errorBox}>

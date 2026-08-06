@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,7 +73,7 @@ export default function RegisterScreen() {
   };
 
   const handleGoogleSignUp = () => {
-    Alert.alert('Google Sign In', 'Fitur Google Sign-In sedang disiapkan.');
+    router.push({ pathname: '/google-oauth', params: { flow: 'register' } });
   };
 
   return (
@@ -177,7 +176,7 @@ export default function RegisterScreen() {
             activeOpacity={0.85}
           >
             <GoogleColorIcon />
-            <Text style={styles.googleButtonText}>Sign up using google</Text>
+            <Text style={styles.googleButtonText}>Daftar dengan Google</Text>
           </TouchableOpacity>
 
           {/* OTP Note */}

@@ -18,7 +18,9 @@ export default function RootLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
         <Stack.Screen name="verify-otp" />
+        <Stack.Screen name="setup-password" />
         <Stack.Screen name="complete-profile" />
+        <Stack.Screen name="google-oauth" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(admin)" />
         <Stack.Screen name="event-detail" />

@@ -33,6 +33,7 @@ interface AuthContextType {
   register: (email: string, password: string) => Promise<any>;
   verifyOtp: (email: string, code: string) => Promise<any>;
   requestOtp: (email: string) => Promise<any>;
+  setupPassword: (password: string) => Promise<any>;
   bindIdentity: (studentId: string) => Promise<any>;
   refreshMe: () => Promise<UserAccount | null>;
   logout: () => Promise<void>;
@@ -114,6 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await api.post('/auth/otp/request', { email });
   };
 
+  const setupPassword = async (password: string) => {
+    return await api.post('/auth/setup-password', { password });
+  };
+
   const bindIdentity = async (studentId: string) => {
     const res: any = await api.post('/auth/bind-identity', { studentId });
     const jwtToken = res?.accessToken || res?.token || res?.data?.token || res?.data?.accessToken;
@@ -143,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         verifyOtp,
         requestOtp,
+        setupPassword,
         bindIdentity,
         refreshMe,
         logout,

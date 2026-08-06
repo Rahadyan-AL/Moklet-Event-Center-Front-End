@@ -21,7 +21,7 @@ const OTP_LENGTH = 6;
 const COUNTDOWN_SECONDS = 45;
 
 export default function VerifyOTPScreen() {
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, provider } = useLocalSearchParams<{ email: string; provider?: string }>();
   const displayEmail = email ?? '';
   const { verifyOtp, requestOtp, refreshMe } = useAuth();
 
@@ -97,7 +97,9 @@ export default function VerifyOTPScreen() {
       const currentUser = await refreshMe();
       setLoading(false);
 
-      if (currentUser && currentUser.student) {
+      if (provider === 'google') {
+        router.replace({ pathname: '/setup-password', params: { email: displayEmail } });
+      } else if (currentUser && currentUser.student) {
         router.replace('/(tabs)/home');
       } else {
         router.replace('/complete-profile');
