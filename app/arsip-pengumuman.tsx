@@ -1,5 +1,5 @@
 // app/arsip-pengumuman.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,38 +9,27 @@ import {
   FlatList,
   TextInput,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Radius } from '../constants/theme';
-import api from '../services/api';
+import { cacheTime, queryKeys } from '../constants/query';
 import { formatDate } from '../utils/date';
-import { AnnouncementItem } from '../services/panitia/announcements.service';
+import { getAnnouncements, AnnouncementItem } from '../services/panitia/announcements.service';
 
 export default function ArsipPengumumanScreen() {
   const [search, setSearch] = useState('');
-  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    async function fetchAnnouncements() {
-      try {
-        setLoading(true);
-        setError(false);
-        const res: any = await api.get('/announcements');
-        const list: AnnouncementItem[] = Array.isArray(res) ? res : res?.data || [];
-        setAnnouncements(list);
-      } catch (err) {
-        console.warn('Error fetching announcements:', err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchAnnouncements();
-  }, []);
+  const { data, isLoading, isRefetching, error, refetch } = useQuery({
+    queryKey: queryKeys.announcements(undefined, 1),
+    staleTime: cacheTime.warm,
+    queryFn: () => getAnnouncements(1, 50),
+  });
+
+  const announcements = data?.data || [];
 
   const filtered = announcements.filter(
     (a) =>
@@ -57,11 +46,11 @@ export default function ArsipPengumumanScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
+          <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <Text style={styles.headerTitle}>Arsip Pengumuman</Text>
-          <Text style={styles.headerSub}>Cari dan temukan pengumuman sebelumnya.</Text>
+          <Text style={styles.headerSub}>Daftar seluruh pengumuman sekolah</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -77,36 +66,56 @@ export default function ArsipPengumumanScreen() {
             value={search}
             onChangeText={setSearch}
           />
+          {search ? (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={18} color={Colors.textPlaceholder} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
-      {loading ? (
+      {isLoading && !data ? (
         <View style={styles.centerState}>
           <ActivityIndicator color={Colors.primary} size="large" />
           <Text style={styles.stateText}>Memuat pengumuman...</Text>
         </View>
       ) : error ? (
         <View style={styles.centerState}>
-          <Ionicons name="wifi-outline" size={40} color={Colors.textSubtitle} />
+          <Ionicons name="alert-circle-outline" size={44} color={Colors.error} />
           <Text style={styles.stateText}>Gagal memuat pengumuman.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()} activeOpacity={0.85}>
+            <Text style={styles.retryBtnText}>Coba Lagi</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item: ann }) => (
-            <TouchableOpacity style={styles.annCard} activeOpacity={0.85}>
-              <View style={styles.annContent}>
-                <View style={styles.annTopRow}>
-                  <Text style={styles.annTitle} numberOfLines={2}>{ann.title}</Text>
+            <View style={styles.annCard}>
+              <View style={styles.annHeaderRow}>
+                <View style={styles.iconTag}>
+                  <Ionicons name="megaphone" size={16} color={Colors.primary} />
                 </View>
-                <Text style={styles.annDesc} numberOfLines={2}>{ann.content}</Text>
-                <View style={styles.annFooter}>
-                  <Ionicons name="calendar-outline" size={11} color={Colors.textSubtitle} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.annTitle}>{ann.title}</Text>
+                  {ann.eventName && (
+                    <Text style={styles.annEventTag}>Event: {ann.eventName}</Text>
+                  )}
+                </View>
+              </View>
+              <Text style={styles.annDesc}>{ann.content}</Text>
+              <View style={styles.annFooter}>
+                <View style={styles.footerItem}>
+                  <Ionicons name="person-outline" size={13} color={Colors.textSubtitle} />
+                  <Text style={styles.annAuthor}>{ann.authorName}</Text>
+                </View>
+                <View style={styles.footerItem}>
+                  <Ionicons name="calendar-outline" size={13} color={Colors.textSubtitle} />
                   <Text style={styles.annDate}>{formatDate(ann.createdAt, { dayStyle: '2-digit' })}</Text>
                 </View>
               </View>
-            </TouchableOpacity>
+            </View>
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
@@ -117,10 +126,22 @@ export default function ArsipPengumumanScreen() {
           removeClippedSubviews
           ListEmptyComponent={(
             <View style={styles.centerState}>
-              <Ionicons name="megaphone-outline" size={40} color={Colors.textSubtitle} />
-              <Text style={styles.stateText}>Tidak ada pengumuman ditemukan.</Text>
+              <Ionicons name="megaphone-outline" size={44} color={Colors.textPlaceholder} />
+              <Text style={styles.emptyTitle}>
+                {search ? 'Pengumuman tidak ditemukan' : 'Belum Ada Pengumuman'}
+              </Text>
+              <Text style={styles.stateText}>
+                {search ? 'Coba gunakan kata kunci pencarian lain.' : 'Pengumuman resmi akan ditampilkan di sini.'}
+              </Text>
             </View>
           )}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              colors={[Colors.primary]}
+            />
+          }
         />
       )}
     </SafeAreaView>
@@ -130,7 +151,7 @@ export default function ArsipPengumumanScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F8FAFC',
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
@@ -142,20 +163,20 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.textMain,
   },
   headerSub: {
     fontSize: 11,
@@ -163,20 +184,22 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   searchRow: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.sm,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F8FAFC',
     borderRadius: Radius.lg,
     paddingHorizontal: Spacing.md,
     height: 44,
     gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   searchInput: {
     flex: 1,
@@ -188,58 +211,101 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
-    gap: Spacing.md,
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.textMain,
+    marginTop: 6,
   },
   stateText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSubtitle,
     textAlign: 'center',
+    maxWidth: 280,
+  },
+  retryBtn: {
+    marginTop: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: Radius.lg,
+  },
+  retryBtnText: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 13,
   },
   list: {
     padding: Spacing.base,
-    gap: Spacing.md,
+    paddingBottom: 32,
   },
   annCard: {
-    flexDirection: 'row',
     backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     padding: Spacing.base,
-    gap: Spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  annContent: {
-    flex: 1,
-  },
-  annTopRow: {
+  annHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 5,
+    gap: 10,
+    marginBottom: 8,
+  },
+  iconTag: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
   annTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: Colors.textMain,
     lineHeight: 20,
   },
+  annEventTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginTop: 2,
+  },
   annDesc: {
-    fontSize: 12,
-    color: Colors.textSubtitle,
-    lineHeight: 17,
-    marginBottom: 8,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
   },
   annFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F8FAFC',
+  },
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  annAuthor: {
+    fontSize: 12,
+    color: Colors.textSubtitle,
+    fontWeight: '600',
   },
   annDate: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSubtitle,
     fontWeight: '500',
   },

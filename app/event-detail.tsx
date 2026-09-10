@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Linking,
   Alert,
   RefreshControl,
 } from 'react-native';
@@ -19,64 +18,61 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Radius } from '../constants/theme';
 import { cacheTime, queryKeys } from '../constants/query';
-import api from '../services/api';
+import { getEventById, getCategoriesByEvent, EventItem, CategoryItem } from '../services/panitia/events.service';
 import { formatDate } from '../utils/date';
-
-export interface EventDetail {
-  id: string;
-  name: string;
-  description?: string;
-  eventDate: string;
-  status?: string;
-  bannerUrl?: string;
-  guidebookUrl?: string;
-  categories?: any[];
-  schedules?: any[];
-  committee?: any[];
-}
+import { getFileUrl, downloadOrOpenGuidebook } from '../utils/url';
+import { getCategoryIcon } from '../utils/icons';
 
 export default function EventDetailScreen() {
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
+  const currentEventId = eventId || '';
 
-  const { data: event, isLoading, isRefetching, error, refetch } = useQuery<EventDetail>({
-    queryKey: queryKeys.eventDetail(eventId),
-    enabled: !!eventId,
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    error,
+    refetch,
+  } = useQuery<{ event: EventItem | null; categories: CategoryItem[] }>({
+    queryKey: queryKeys.eventDetail(currentEventId),
+    enabled: !!currentEventId,
     staleTime: cacheTime.cold,
     queryFn: async () => {
-      const res: any = await api.get(`/events/${eventId}`);
-      return res?.data || res;
+      const [ev, cats] = await Promise.all([
+        getEventById(currentEventId).catch(() => null),
+        getCategoriesByEvent(currentEventId).catch(() => []),
+      ]);
+      return { event: ev, categories: cats };
     },
   });
 
-  const errorMsg = !eventId
-    ? 'ID Event tidak ditemukan'
+  const event = data?.event || null;
+  const categories = data?.categories || [];
+
+  const errorMsg = !currentEventId
+    ? 'ID Event tidak valid atau tidak ditemukan.'
     : error
       ? 'Gagal memuat detail event dari server.'
       : null;
 
   const handleDownloadGuidebook = () => {
-    if (event?.guidebookUrl) {
-      Linking.openURL(event.guidebookUrl).catch(() => {
-        Alert.alert('Gagal', 'Tidak dapat membuka tautan guidebook.');
-      });
-    } else {
-      Alert.alert('Informasi', 'Guidebook belum diunggah untuk event ini.');
-    }
+    if (!event) return;
+    downloadOrOpenGuidebook(event.guidebookUrl, event.name);
   };
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detail Event</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Memuat detail event...</Text>
+          <Text style={styles.loadingText}>Memuat informasi event...</Text>
         </View>
       </SafeAreaView>
     );
@@ -86,18 +82,19 @@ export default function EventDetailScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detail Event</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.centerContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-          <Text style={styles.errorTextTitle}>Terjadi Kesalahan</Text>
-          <Text style={styles.errorTextSub}>{errorMsg || 'Event tidak ditemukan'}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-            <Text style={styles.retryBtnText}>Coba Lagi</Text>
+          <Ionicons name="alert-circle-outline" size={54} color={Colors.error} />
+          <Text style={styles.errorTextTitle}>Event Tidak Ditemukan</Text>
+          <Text style={styles.errorTextSub}>{errorMsg || 'Event yang Anda cari tidak tersedia.'}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()} activeOpacity={0.85}>
+            <Ionicons name="refresh" size={16} color={Colors.white} />
+            <Text style={styles.retryBtnText}>Muat Ulang</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -105,25 +102,26 @@ export default function EventDetailScreen() {
   }
 
   const isClosed = event.status === 'CLOSED';
+  const bannerUri = getFileUrl(event.bannerUrl);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
+      {/* Top App Bar */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
+          <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detail Event</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>Detail Event</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -132,112 +130,174 @@ export default function EventDetailScreen() {
           />
         }
       >
-        {/* 1. Banner */}
-        {event.bannerUrl ? (
-          <Image
-            source={event.bannerUrl}
-            style={styles.banner}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={150}
-          />
-        ) : (
-          <View style={styles.bannerPlaceholder}>
-            <Ionicons name="image-outline" size={42} color={Colors.textSubtitle} />
-            <Text style={styles.bannerPlaceholderText}>Banner tidak tersedia</Text>
-          </View>
-        )}
-
-        {/* 2. Judul & Tanggal Event */}
-        <View style={styles.titleCard}>
-          <Text style={styles.eventTitle}>{event.name}</Text>
-          <View style={styles.dateRow}>
-            <Ionicons name="calendar-outline" size={15} color={Colors.textSubtitle} />
-            <Text style={styles.dateText}>{formatDate(event.eventDate, { monthStyle: 'long' })}</Text>
-          </View>
-          {event.status ? (
-            <View style={styles.tagsRow}>
+        {/* 1. Event Hero Banner */}
+        <View style={styles.bannerContainer}>
+          {bannerUri ? (
+            <Image
+              source={{ uri: bannerUri }}
+              style={styles.banner}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
+          ) : (
+            <View style={styles.bannerPlaceholder}>
+              <Ionicons name="image-outline" size={48} color={Colors.textPlaceholder} />
+              <Text style={styles.bannerPlaceholderText}>Banner Acara Moklet</Text>
+            </View>
+          )}
+          <View style={styles.bannerStatusOverlay}>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: isClosed ? '#FEE2E2' : '#DCFCE7' },
+              ]}
+            >
               <View
                 style={[
-                  styles.tag,
-                  { backgroundColor: isClosed ? '#FFEBEE' : '#E8F5E9' },
+                  styles.statusDot,
+                  { backgroundColor: isClosed ? Colors.error : Colors.success },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: isClosed ? Colors.error : '#15803D' },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.tagText,
-                    { color: isClosed ? Colors.primary : '#2E7D32' },
-                  ]}
-                >
-                  {event.status}
-                </Text>
-              </View>
+                {isClosed ? 'Pendaftaran Ditutup' : 'Sedang Berlangsung'}
+              </Text>
             </View>
-          ) : null}
+          </View>
         </View>
 
-        {/* 3. Deskripsi Event */}
+        {/* 2. Judul & Tanggal Pelaksanaan */}
+        <View style={styles.mainInfoCard}>
+          <Text style={styles.eventTitle}>{event.name}</Text>
+          <View style={styles.metaInfoRow}>
+            <View style={styles.metaItem}>
+              <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+              <Text style={styles.metaText}>{formatDate(event.eventDate, { monthStyle: 'long' })}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="trophy-outline" size={16} color={Colors.primary} />
+              <Text style={styles.metaText}>{categories.length} Cabang Lomba</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 3. Deskripsi Acara */}
         {event.description ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Tentang Event</Text>
+            <View style={styles.cardHeader}>
+              <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+              <Text style={styles.cardTitle}>Tentang Acara</Text>
+            </View>
             <Text style={styles.descText}>{event.description}</Text>
           </View>
         ) : null}
 
-        {/* 4. Guidebook */}
+        {/* 4. Dokumen Guidebook Resmi */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Guidebook</Text>
+          <View style={styles.cardHeader}>
+            <Ionicons name="book-outline" size={18} color={Colors.primary} />
+            <Text style={styles.cardTitle}>Guidebook & Panduan Resmi</Text>
+          </View>
           <Text style={styles.guidebookDesc}>
-            Pelajari peraturan dan panduan lengkap acara {event.name} sebelum mendaftar.
+            Unduh petunjuk teknis, syarat & ketentuan, jadwal babak, serta kriteria penilaian lomba.
           </Text>
+          
           <TouchableOpacity
-            style={[styles.downloadBtn, !event.guidebookUrl && styles.downloadBtnDisabled]}
+            style={[
+              styles.downloadBtn,
+              !event.guidebookUrl && styles.downloadBtnDisabled,
+            ]}
             activeOpacity={0.85}
             onPress={handleDownloadGuidebook}
           >
-            <Ionicons name="download-outline" size={20} color={Colors.white} />
-            <Text style={styles.downloadBtnText}>
-              {event.guidebookUrl ? 'Unduh Guidebook (PDF)' : 'Guidebook Belum Tersedia'}
-            </Text>
+            <View style={styles.downloadIconBadge}>
+              <Ionicons
+                name={event.guidebookUrl ? 'document-text' : 'lock-closed'}
+                size={18}
+                color={event.guidebookUrl ? Colors.white : Colors.textPlaceholder}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.downloadBtnTitle}>
+                {event.guidebookUrl ? 'Unduh Dokumen Guidebook (PDF)' : 'Guidebook Belum Diunggah'}
+              </Text>
+              <Text style={styles.downloadBtnSub}>
+                {event.guidebookUrl
+                  ? 'Klik untuk membuka & menyimpan file PDF panduan'
+                  : 'Panitia belum merilis dokumen panduan untuk event ini'}
+              </Text>
+            </View>
+            {event.guidebookUrl && (
+              <Ionicons name="download-outline" size={20} color={Colors.white} />
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* 5. Informasi Kategori / Cabang Lomba */}
-        {event.categories && event.categories.length > 0 ? (
+        {/* 5. Daftar Cabang Lomba */}
+        {categories.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Cabang Lomba ({event.categories.length})</Text>
-            {event.categories.map((cat, i) => (
-              <React.Fragment key={cat.id || i}>
-                {i > 0 && <View style={styles.rowDivider} />}
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIconBox}>
-                    <Ionicons name="trophy-outline" size={18} color={Colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.infoValue}>{cat.name}</Text>
-                    <Text style={styles.infoLabel}>
-                      Anggota: {cat.minMember} - {cat.maxMember} Orang ({cat.teamCompositionMode || 'FREE'})
-                    </Text>
+            <View style={styles.cardHeader}>
+              <Ionicons name="grid-outline" size={18} color={Colors.primary} />
+              <Text style={styles.cardTitle}>Cabang Lomba ({categories.length})</Text>
+            </View>
+
+            {categories.map((cat, idx) => (
+              <View key={cat.id || idx} style={styles.categoryCard}>
+                <View style={styles.categoryIconBox}>
+                  <Ionicons name={getCategoryIcon(cat.name)} size={22} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.categoryName}>{cat.name}</Text>
+                  <View style={styles.categoryBadgeRow}>
+                    <View style={styles.categoryBadge}>
+                      <Ionicons name="people-outline" size={12} color={Colors.textSubtitle} />
+                      <Text style={styles.categoryBadgeText}>
+                        {cat.maxMember === 1
+                          ? 'Individu (1 Orang)'
+                          : `${cat.minMember} - ${cat.maxMember} Anggota`}
+                      </Text>
+                    </View>
+                    {cat.teamCompositionMode && (
+                      <View style={styles.categoryBadgeMode}>
+                        <Text style={styles.categoryBadgeModeText}>
+                          {cat.teamCompositionMode === 'PER_CLASS'
+                            ? 'Per Kelas'
+                            : cat.teamCompositionMode === 'PER_ANGKATAN'
+                              ? 'Per Angkatan'
+                              : 'Bebas / Lintas'}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-              </React.Fragment>
+              </View>
             ))}
           </View>
-        ) : null}
+        )}
       </ScrollView>
 
-      {/* Sticky CTA */}
+      {/* Sticky Bottom Action Bar */}
       <View style={styles.ctaContainer}>
         <TouchableOpacity
           style={[styles.ctaBtn, isClosed && styles.ctaBtnDisabled]}
-          activeOpacity={0.85}
+          activeOpacity={0.88}
           disabled={isClosed}
           onPress={() =>
             router.push({ pathname: '/daftar-lomba', params: { eventId: event.id } })
           }
         >
+          <Ionicons
+            name={isClosed ? 'close-circle-outline' : 'paper-plane-outline'}
+            size={18}
+            color={Colors.white}
+          />
           <Text style={styles.ctaBtnText}>
-            {isClosed ? 'Pendaftaran Ditutup' : 'Ajukan Pendaftaran'}
+            {isClosed ? 'Pendaftaran Ditutup' : 'Ajukan Pendaftaran Lomba'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -248,7 +308,7 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F8FAFC',
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
@@ -259,20 +319,20 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.textMain,
   },
   centerContainer: {
     flex: 1,
@@ -287,179 +347,276 @@ const styles = StyleSheet.create({
   },
   errorTextTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.textMain,
+    marginTop: 8,
   },
   errorTextSub: {
     fontSize: 14,
     color: Colors.textSubtitle,
     textAlign: 'center',
+    maxWidth: 280,
   },
   retryBtn: {
-    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
     backgroundColor: Colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
   },
   retryBtnText: {
     color: Colors.white,
     fontWeight: '700',
+    fontSize: 14,
+  },
+  bannerContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 220,
+    backgroundColor: '#E2E8F0',
   },
   banner: {
     width: '100%',
-    height: 220,
+    height: '100%',
   },
   bannerPlaceholder: {
     width: '100%',
-    height: 220,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
+    gap: 6,
   },
   bannerPlaceholderText: {
-    marginTop: 8,
     fontSize: 13,
+    fontWeight: '600',
     color: Colors.textSubtitle,
   },
-  titleCard: {
-    backgroundColor: Colors.white,
-    margin: Spacing.base,
-    borderRadius: Radius.xl,
-    padding: Spacing.base,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+  bannerStatusOverlay: {
+    position: 'absolute',
+    bottom: 12,
+    right: 14,
   },
-  eventTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.textMain,
-    marginBottom: 8,
-  },
-  dateRow: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 10,
-  },
-  dateText: {
-    fontSize: 14,
-    color: Colors.textSubtitle,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tag: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: Radius.round,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  tagText: {
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusBadgeText: {
     fontSize: 12,
     fontWeight: '700',
   },
-  card: {
+  mainInfoCard: {
     backgroundColor: Colors.white,
     marginHorizontal: Spacing.base,
-    marginBottom: Spacing.md,
+    marginTop: -20,
     borderRadius: Radius.xl,
     padding: Spacing.base,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  eventTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.textMain,
+    lineHeight: 26,
+    marginBottom: 10,
+  },
+  metaInfoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  metaText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  card: {
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.base,
+    marginTop: Spacing.md,
+    borderRadius: Radius.xl,
+    padding: Spacing.base,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: Spacing.md,
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.textMain,
-    marginBottom: Spacing.md,
   },
   descText: {
     fontSize: 14,
-    color: Colors.textMain,
+    color: Colors.textSecondary,
     lineHeight: 22,
   },
   guidebookDesc: {
     fontSize: 13,
     color: Colors.textSubtitle,
     lineHeight: 19,
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.md,
   },
   downloadBtn: {
     backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
-    borderRadius: Radius.round,
+    gap: 12,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 14,
+    borderRadius: Radius.lg,
   },
   downloadBtnDisabled: {
-    backgroundColor: '#9E9E9E',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  downloadBtnText: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    gap: Spacing.md,
-  },
-  infoIconBox: {
+  downloadIconBadge: {
     width: 36,
     height: 36,
-    borderRadius: Radius.md,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadBtnTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  downloadBtnSub: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
+  },
+  categoryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  categoryIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoLabel: {
-    fontSize: 12,
-    color: Colors.textSubtitle,
-    marginTop: 2,
-  },
-  infoValue: {
+  categoryName: {
     fontSize: 14,
     fontWeight: '700',
     color: Colors.textMain,
+    marginBottom: 4,
   },
-  rowDivider: {
-    height: 1,
-    backgroundColor: '#F5F5F5',
+  categoryBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSubtitle,
+  },
+  categoryBadgeMode: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+  },
+  categoryBadgeModeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
   },
   ctaContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.base,
-    paddingBottom: Platform.OS === 'ios' ? 32 : Spacing.base,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? 28 : Spacing.md,
     backgroundColor: Colors.white,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   ctaBtn: {
     backgroundColor: Colors.primary,
-    paddingVertical: 15,
-    borderRadius: Radius.round,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: Radius.round,
   },
   ctaBtnDisabled: {
-    backgroundColor: '#9E9E9E',
+    backgroundColor: '#CBD5E1',
   },
   ctaBtnText: {
     color: Colors.white,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
 });

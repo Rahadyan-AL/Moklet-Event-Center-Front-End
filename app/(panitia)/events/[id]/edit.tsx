@@ -22,6 +22,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { Colors, Spacing, Radius } from "../../../../constants/theme";
 import { getEventById, updateEvent, updateEventStatus, uploadBanner, uploadGuidebook } from "../../../../services/panitia/events.service";
+import { getFileUrl } from "../../../../utils/url";
 
 export default function EditEventScreen() {
   const queryClient = useQueryClient();
@@ -233,7 +234,10 @@ export default function EditEventScreen() {
           <TouchableOpacity style={styles.uploadCard} onPress={pickBanner} activeOpacity={0.8}>
             {bannerUri || currentBannerUrl ? (
               <View style={styles.bannerPreviewWrapper}>
-                <Image source={{ uri: bannerUri || currentBannerUrl! }} style={styles.bannerPreview} />
+                <Image
+                  source={{ uri: bannerUri || getFileUrl(currentBannerUrl) }}
+                  style={styles.bannerPreview}
+                />
                 <View style={styles.changeOverlay}>
                   <Ionicons name="camera-outline" size={18} color="#fff" />
                   <Text style={styles.changeText}>Ganti Banner</Text>

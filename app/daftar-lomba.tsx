@@ -21,7 +21,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Colors, Spacing, Radius } from '../constants/theme';
 import { cacheTime, queryKeys } from '../constants/query';
-import api from '../services/api';
 import {
   getCategoriesByEvent,
   getEventById,
@@ -34,6 +33,7 @@ import {
   joinTeam,
 } from '../services/registration.service';
 import { getCategoryIcon } from '../utils/icons';
+import { downloadOrOpenGuidebook } from '../utils/url';
 
 export default function DaftarLombaScreen() {
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
@@ -119,7 +119,6 @@ export default function DaftarLombaScreen() {
     setSubmitting(true);
     try {
       await registerIndividual(categoryId);
-      // Sinkronkan cache: riwayat & kuota langsung ter-update di semua layar.
       await invalidateRegistrationData();
       Alert.alert(
         'Pendaftaran Berhasil!',
@@ -162,7 +161,7 @@ export default function DaftarLombaScreen() {
   const handleJoinTeamSubmit = async () => {
     const cleanCode = roomCodeInput.trim();
     if (!cleanCode) {
-      setModalError('Kode room wajib diisi.');
+      setModalError('Kode room tim wajib diisi.');
       return;
     }
 
@@ -173,14 +172,14 @@ export default function DaftarLombaScreen() {
       const team = await joinTeam(cleanCode);
       await invalidateRegistrationData(team.id);
       setShowEnterCodeModal(false);
-      Alert.alert('Berhasil Bergabung!', `Kamu telah bergabung dengan tim ${team.name}.`, [
+      Alert.alert('Berhasil Bergabung!', `Kamu telah bergabung dengan tim "${team.name}".`, [
         {
           text: 'Masuk ke Room Tim',
           onPress: () => router.push({ pathname: '/room-tim', params: { teamId: team.id } }),
         },
       ]);
     } catch (err: any) {
-      setModalError(err?.formattedMessage || err?.message || 'Kode room tidak ditemukan atau kuota penuh.');
+      setModalError(err?.formattedMessage || err?.message || 'Kode room tidak ditemukan atau kuota tim sudah penuh.');
     } finally {
       setSubmitting(false);
     }
@@ -228,16 +227,16 @@ export default function DaftarLombaScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
+          <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: 8 }}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Daftar Lomba</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>Pilih Cabang Lomba</Text>
           <Text style={styles.headerSub} numberOfLines={1}>{eventName}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
 
-      {isLoading || submitting ? (
+      {isLoading ? (
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Memuat cabang lomba...</Text>
@@ -254,6 +253,26 @@ export default function DaftarLombaScreen() {
             />
           }
         >
+          {/* Guidebook Banner Quick Action */}
+          {eventData?.guidebookUrl && (
+            <TouchableOpacity
+              style={styles.guidebookBanner}
+              activeOpacity={0.85}
+              onPress={() => downloadOrOpenGuidebook(eventData.guidebookUrl, eventData.name)}
+            >
+              <View style={styles.guidebookBannerIcon}>
+                <Ionicons name="book" size={18} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.guidebookBannerTitle}>Unduh Guidebook PDF</Text>
+                <Text style={styles.guidebookBannerSub}>
+                  Pelajari panduan dan aturan sebelum memilih cabang lomba
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+            </TouchableOpacity>
+          )}
+
           {errorMsg ? (
             <View style={styles.errorBox}>
               <Ionicons name="alert-circle-outline" size={18} color={Colors.error} />
@@ -261,48 +280,42 @@ export default function DaftarLombaScreen() {
             </View>
           ) : null}
 
-          {categories.map((branch, index) => {
+          <Text style={styles.sectionHeading}>Daftar Kategori ({categories.length})</Text>
+
+          {categories.map((branch) => {
             const isIndividual = branch.maxMember === 1;
             const memberLabel = isIndividual
               ? 'Individu (1 orang)'
               : `Kelompok (${branch.minMember} - ${branch.maxMember} anggota)`;
 
             return (
-              <View key={branch.id}>
-                <TouchableOpacity
-                  style={styles.branchItem}
-                  activeOpacity={0.7}
-                  onPress={() => handleCategoryPress(branch)}
-                >
-                  <View style={styles.branchLeft}>
-                    <View style={styles.branchIcon}>
-                      <Ionicons
-                        name={getCategoryIcon(branch.name)}
-                        size={20}
-                        color={Colors.primary}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.branchName}>{branch.name}</Text>
-                      <View style={styles.typeRow}>
-                        <Ionicons
-                          name={isIndividual ? 'person-outline' : 'people-outline'}
-                          size={12}
-                          color={Colors.textSubtitle}
-                        />
-                        <Text style={styles.branchType}>{memberLabel}</Text>
-                      </View>
-                    </View>
+              <View key={branch.id} style={styles.branchCard}>
+                <View style={styles.branchIcon}>
+                  <Ionicons
+                    name={getCategoryIcon(branch.name)}
+                    size={22}
+                    color={Colors.primary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.branchName}>{branch.name}</Text>
+                  <View style={styles.typeRow}>
+                    <Ionicons
+                      name={isIndividual ? 'person-outline' : 'people-outline'}
+                      size={13}
+                      color={Colors.textSubtitle}
+                    />
+                    <Text style={styles.branchType}>{memberLabel}</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.daftarBtn}
-                    onPress={() => handleCategoryPress(branch)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.daftarBtnText}>Daftar</Text>
-                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={styles.daftarBtn}
+                  onPress={() => handleCategoryPress(branch)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.daftarBtnText}>Daftar</Text>
+                  <Ionicons name="chevron-forward" size={14} color={Colors.white} />
                 </TouchableOpacity>
-                {index < categories.length - 1 && <View style={styles.divider} />}
               </View>
             );
           })}
@@ -314,7 +327,7 @@ export default function DaftarLombaScreen() {
           </View>
           <Text style={styles.emptyStateTitle}>Belum Ada Cabang Lomba</Text>
           <Text style={styles.emptyStateText}>
-            Belum ada cabang lomba yang dibuka untuk event "{eventName}". Silakan cek kembali secara berkala.
+            Belum ada cabang lomba yang dibuka untuk event "{eventName}". Silakan periksa kembali nanti.
           </Text>
         </View>
       )}
@@ -328,9 +341,12 @@ export default function DaftarLombaScreen() {
       >
         <Pressable style={styles.overlay} onPress={() => setShowChoiceModal(false)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalIconTop}>
+              <Ionicons name="people" size={24} color={Colors.primary} />
+            </View>
             <Text style={styles.choiceTitle}>{selectedCategory?.name || 'Cabang Lomba'}</Text>
             <Text style={styles.choiceSubtitle}>
-              Min. {selectedCategory?.minMember} anggota, Maks. {selectedCategory?.maxMember} anggota
+              Kategori Tim (Min. {selectedCategory?.minMember}, Maks. {selectedCategory?.maxMember} anggota)
             </Text>
 
             {/* Side-by-Side Action Buttons */}
@@ -340,7 +356,8 @@ export default function DaftarLombaScreen() {
                 activeOpacity={0.8}
                 onPress={handlePressEnterCode}
               >
-                <Text style={styles.enterCodeOutlineText}>Masukkan Kode Room</Text>
+                <Ionicons name="key-outline" size={18} color={Colors.primary} />
+                <Text style={styles.enterCodeOutlineText}>Masukkan Kode Tim</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -348,7 +365,8 @@ export default function DaftarLombaScreen() {
                 activeOpacity={0.85}
                 onPress={handlePressCreateRoom}
               >
-                <Text style={styles.createRoomSolidText}>Buat Room</Text>
+                <Ionicons name="add-circle-outline" size={18} color={Colors.white} />
+                <Text style={styles.createRoomSolidText}>Buat Tim Baru</Text>
               </TouchableOpacity>
             </View>
 
@@ -358,7 +376,7 @@ export default function DaftarLombaScreen() {
               activeOpacity={0.8}
               onPress={() => setShowChoiceModal(false)}
             >
-              <Text style={styles.cancelFullText}>Batal</Text>
+              <Text style={styles.cancelFullText}>Tutup</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -372,7 +390,7 @@ export default function DaftarLombaScreen() {
         onRequestClose={() => !submitting && setShowEnterCodeModal(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <Pressable
@@ -380,9 +398,9 @@ export default function DaftarLombaScreen() {
             onPress={() => !submitting && setShowEnterCodeModal(false)}
           >
             <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-              <Text style={styles.enterCodeTitle}>Masukkan Kode Room</Text>
+              <Text style={styles.enterCodeTitle}>Masukkan Kode Tim</Text>
               <Text style={styles.enterCodeDesc}>
-                Masukkan kode tim yang diberikan oleh ketua tim (leader).
+                Masukkan kode tim 6 karakter yang diberikan oleh ketua tim (leader).
               </Text>
 
               {modalError ? (
@@ -395,7 +413,7 @@ export default function DaftarLombaScreen() {
               <TextInput
                 style={styles.codeInputBox}
                 placeholder="KODE TIM"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={Colors.textPlaceholder}
                 value={roomCodeInput}
                 onChangeText={(t) => {
                   setRoomCodeInput(t);
@@ -415,7 +433,7 @@ export default function DaftarLombaScreen() {
                 {submitting ? (
                   <ActivityIndicator color={Colors.white} size="small" />
                 ) : (
-                  <Text style={styles.gabungRoomText}>Gabung Room</Text>
+                  <Text style={styles.gabungRoomText}>Gabung ke Tim</Text>
                 )}
               </TouchableOpacity>
 
@@ -432,7 +450,7 @@ export default function DaftarLombaScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODAL 3: Create Team Modal (Buat Tim Baru) */}
+      {/* MODAL 3: Create Team Modal */}
       <Modal
         visible={showCreateTeamModal}
         transparent
@@ -440,7 +458,7 @@ export default function DaftarLombaScreen() {
         onRequestClose={() => !submitting && setShowCreateTeamModal(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <Pressable
@@ -448,9 +466,9 @@ export default function DaftarLombaScreen() {
             onPress={() => !submitting && setShowCreateTeamModal(false)}
           >
             <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-              <Text style={styles.enterCodeTitle}>Buat Room Tim</Text>
+              <Text style={styles.enterCodeTitle}>Buat Tim Baru</Text>
               <Text style={styles.enterCodeDesc}>
-                Masukkan nama tim untuk cabang lomba "{selectedCategory?.name}". Anda otomatis menjadi Leader tim.
+                Tentukan nama tim untuk cabang lomba "{selectedCategory?.name}". Anda otomatis terdaftar sebagai Leader tim.
               </Text>
 
               {modalError ? (
@@ -461,9 +479,9 @@ export default function DaftarLombaScreen() {
               ) : null}
 
               <TextInput
-                style={[styles.codeInputBox, { letterSpacing: 0, fontSize: 16, textAlign: 'left', paddingHorizontal: 16 }]}
-                placeholder="Contoh: Tim Garuda Moklet"
-                placeholderTextColor="#94A3B8"
+                style={[styles.codeInputBox, { letterSpacing: 0, fontSize: 15, textAlign: 'left', paddingHorizontal: 16 }]}
+                placeholder="Contoh: Tim Moklet Juara"
+                placeholderTextColor={Colors.textPlaceholder}
                 value={teamNameInput}
                 onChangeText={(t) => {
                   setTeamNameInput(t);
@@ -505,7 +523,7 @@ export default function DaftarLombaScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#F8FAFC',
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
@@ -516,47 +534,83 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.textMain,
   },
   headerSub: {
     fontSize: 12,
     color: Colors.textSubtitle,
+    marginTop: 1,
   },
   list: {
     padding: Spacing.base,
-  },
-  branchItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    paddingVertical: Spacing.base,
-    paddingHorizontal: Spacing.base,
-    borderRadius: Radius.lg,
-  },
-  branchLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.md,
-    flex: 1,
-    paddingRight: 8,
+  },
+  guidebookBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.xl,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  guidebookBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guidebookBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  guidebookBannerSub: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  sectionHeading: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.textMain,
+    marginTop: 4,
+    marginBottom: -4,
+  },
+  branchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    padding: Spacing.base,
+    borderRadius: Radius.xl,
+    gap: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   branchIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: Radius.lg,
     backgroundColor: Colors.primaryLight,
     alignItems: 'center',
@@ -566,7 +620,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Colors.textMain,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   typeRow: {
     flexDirection: 'row',
@@ -576,11 +630,15 @@ const styles = StyleSheet.create({
   branchType: {
     fontSize: 12,
     color: Colors.textSubtitle,
+    fontWeight: '500',
   },
   daftarBtn: {
     backgroundColor: Colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: Radius.round,
   },
   daftarBtnText: {
@@ -588,13 +646,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#F0F0F0',
-    marginHorizontal: Spacing.base,
-  },
-
-  // States
   centerBox: {
     flex: 1,
     alignItems: 'center',
@@ -609,18 +660,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FFEBEE',
+    backgroundColor: '#FEE2E2',
     borderRadius: Radius.md,
     padding: Spacing.md,
-    marginBottom: Spacing.md,
   },
   errorText: {
     flex: 1,
     color: Colors.error,
     fontSize: 13,
   },
-
-  // Empty state
   emptyStateContainer: {
     flex: 1,
     alignItems: 'center',
@@ -628,9 +676,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
   },
   emptyIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
@@ -639,13 +687,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   emptyStateTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: Colors.textMain,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   emptyStateText: {
     fontSize: 13,
@@ -653,34 +703,39 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-
-  // Modals Styling
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: Colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
   },
   modalCard: {
     backgroundColor: Colors.white,
-    borderRadius: 24,
+    borderRadius: Radius.xl,
     padding: Spacing.xl,
     width: '100%',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
-
-  // Choice Modal
+  modalIconTop: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
   choiceTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: Colors.textMain,
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
   },
   choiceSubtitle: {
@@ -699,39 +754,40 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 8,
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderColor: Colors.primary,
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   enterCodeOutlineText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.primary,
     textAlign: 'center',
-    lineHeight: 18,
   },
   createRoomSolidBtn: {
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 8,
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   createRoomSolidText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.white,
     textAlign: 'center',
   },
   cancelFullBtn: {
     width: '100%',
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 12,
+    borderRadius: Radius.lg,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
@@ -739,30 +795,28 @@ const styles = StyleSheet.create({
   cancelFullText: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.textMain,
+    color: Colors.textSecondary,
   },
-
-  // Enter Code Modal
   enterCodeTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: Colors.textMain,
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   enterCodeDesc: {
     fontSize: 13,
     color: Colors.textSubtitle,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
+    lineHeight: 19,
+    marginBottom: Spacing.base,
     paddingHorizontal: Spacing.sm,
   },
   modalErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFEBEE',
+    backgroundColor: '#FEE2E2',
     borderRadius: Radius.md,
     padding: Spacing.sm,
     marginBottom: Spacing.md,
@@ -775,20 +829,22 @@ const styles = StyleSheet.create({
   },
   codeInputBox: {
     width: '100%',
-    height: 52,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 14,
-    fontSize: 18,
+    height: 50,
+    backgroundColor: '#F8FAFC',
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textMain,
     textAlign: 'center',
-    letterSpacing: 4,
-    marginBottom: Spacing.md,
+    letterSpacing: 3,
+    marginBottom: Spacing.base,
   },
   gabungRoomBtn: {
     width: '100%',
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

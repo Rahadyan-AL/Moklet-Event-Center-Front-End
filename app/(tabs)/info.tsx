@@ -1,5 +1,5 @@
 // app/(tabs)/info.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,37 +9,26 @@ import {
   FlatList,
   TextInput,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Radius } from '../../constants/theme';
-import api from '../../services/api';
+import { cacheTime, queryKeys } from '../../constants/query';
 import { formatDate } from '../../utils/date';
-import { AnnouncementItem } from '../../services/panitia/announcements.service';
+import { getAnnouncements, AnnouncementItem } from '../../services/panitia/announcements.service';
 
 export default function InfoScreen() {
   const [search, setSearch] = useState('');
-  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    async function fetchAnnouncements() {
-      try {
-        setLoading(true);
-        setError(false);
-        const res: any = await api.get('/announcements');
-        const list: AnnouncementItem[] = Array.isArray(res) ? res : res?.data || [];
-        setAnnouncements(list);
-      } catch (err) {
-        console.warn('Error fetching announcements in Info:', err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchAnnouncements();
-  }, []);
+  const { data, isLoading, isRefetching, error, refetch } = useQuery({
+    queryKey: queryKeys.announcements(undefined, 1),
+    staleTime: cacheTime.warm,
+    queryFn: () => getAnnouncements(1, 50),
+  });
+
+  const announcements = data?.data || [];
 
   const filtered = announcements.filter(
     (a) =>
@@ -52,7 +41,7 @@ export default function InfoScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Arsip Pengumuman</Text>
-        <Text style={styles.headerSub}>Cari dan temukan pengumuman penting sebelumnya.</Text>
+        <Text style={styles.headerSub}>Informasi penting dan update seputar kegiatan sekolah</Text>
       </View>
 
       {/* Search */}
@@ -61,39 +50,61 @@ export default function InfoScreen() {
           <Ionicons name="search-outline" size={18} color={Colors.textPlaceholder} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Cari pengumuman..."
+            placeholder="Cari pengumuman atau info..."
             placeholderTextColor={Colors.textPlaceholder}
             value={search}
             onChangeText={setSearch}
           />
+          {search ? (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={18} color={Colors.textPlaceholder} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
-      {loading ? (
+      {isLoading && !data ? (
         <View style={styles.centerState}>
           <ActivityIndicator color={Colors.primary} size="large" />
           <Text style={styles.stateText}>Memuat pengumuman...</Text>
         </View>
       ) : error ? (
         <View style={styles.centerState}>
-          <Ionicons name="wifi-outline" size={40} color={Colors.textSubtitle} />
-          <Text style={styles.stateText}>Gagal memuat pengumuman.</Text>
+          <Ionicons name="alert-circle-outline" size={44} color={Colors.error} />
+          <Text style={styles.stateText}>Gagal memuat daftar pengumuman.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()} activeOpacity={0.85}>
+            <Text style={styles.retryBtnText}>Coba Lagi</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item: ann }) => (
-            <TouchableOpacity style={styles.annCard} activeOpacity={0.85}>
+            <View style={styles.annCard}>
               <View style={styles.annHeaderRow}>
-                <Text style={styles.annTitle} numberOfLines={2}>{ann.title}</Text>
+                <View style={styles.iconTag}>
+                  <Ionicons name="megaphone" size={16} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.annTitle}>{ann.title}</Text>
+                  {ann.eventName && (
+                    <Text style={styles.annEventTag}>Event: {ann.eventName}</Text>
+                  )}
+                </View>
               </View>
-              <Text style={styles.annDesc} numberOfLines={3}>{ann.content}</Text>
+              <Text style={styles.annDesc}>{ann.content}</Text>
               <View style={styles.annFooter}>
-                <Ionicons name="calendar-outline" size={13} color={Colors.textSubtitle} />
-                <Text style={styles.annDate}>{formatDate(ann.createdAt, { dayStyle: '2-digit' })}</Text>
+                <View style={styles.footerItem}>
+                  <Ionicons name="person-outline" size={13} color={Colors.textSubtitle} />
+                  <Text style={styles.annAuthor}>{ann.authorName}</Text>
+                </View>
+                <View style={styles.footerItem}>
+                  <Ionicons name="calendar-outline" size={13} color={Colors.textSubtitle} />
+                  <Text style={styles.annDate}>{formatDate(ann.createdAt, { dayStyle: '2-digit' })}</Text>
+                </View>
               </View>
-            </TouchableOpacity>
+            </View>
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
@@ -104,10 +115,22 @@ export default function InfoScreen() {
           removeClippedSubviews
           ListEmptyComponent={(
             <View style={styles.centerState}>
-              <Ionicons name="megaphone-outline" size={40} color={Colors.textSubtitle} />
-              <Text style={styles.stateText}>Tidak ada pengumuman ditemukan.</Text>
+              <Ionicons name="megaphone-outline" size={44} color={Colors.textPlaceholder} />
+              <Text style={styles.emptyTitle}>
+                {search ? 'Pengumuman tidak ditemukan' : 'Belum Ada Pengumuman'}
+              </Text>
+              <Text style={styles.stateText}>
+                {search ? 'Coba cari dengan kata kunci lain.' : 'Pengumuman resmi dari panitia atau sekolah akan muncul di sini.'}
+              </Text>
             </View>
           )}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              colors={[Colors.primary]}
+            />
+          }
         />
       )}
     </SafeAreaView>
@@ -117,47 +140,42 @@ export default function InfoScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#F8FAFC',
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
     backgroundColor: Colors.white,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.textMain,
   },
   headerSub: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSubtitle,
     marginTop: 2,
   },
   searchRow: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    paddingBottom: Spacing.md,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: '#F8FAFC',
     borderRadius: Radius.lg,
     paddingHorizontal: Spacing.md,
-    height: 46,
+    height: 44,
     gap: Spacing.sm,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
   },
   searchInput: {
     flex: 1,
@@ -169,53 +187,98 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
-    gap: Spacing.md,
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.textMain,
+    marginTop: 6,
   },
   stateText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSubtitle,
     textAlign: 'center',
+    maxWidth: 280,
+  },
+  retryBtn: {
+    marginTop: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: Radius.lg,
+  },
+  retryBtnText: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 13,
   },
   list: {
-    padding: Spacing.xl,
-    gap: Spacing.md,
+    padding: Spacing.base,
+    paddingBottom: 32,
   },
   annCard: {
     backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     padding: Spacing.base,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
     borderWidth: 1,
     borderColor: '#F1F5F9',
   },
   annHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
+    gap: 10,
     marginBottom: 8,
   },
+  iconTag: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
   annTitle: {
-    flex: 1,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.textMain,
-    lineHeight: 21,
+    lineHeight: 20,
+  },
+  annEventTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginTop: 2,
   },
   annDesc: {
     fontSize: 13,
-    color: Colors.textSubtitle,
-    lineHeight: 19,
-    marginBottom: 12,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
   },
   annFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F8FAFC',
+  },
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  annAuthor: {
+    fontSize: 12,
+    color: Colors.textSubtitle,
+    fontWeight: '600',
   },
   annDate: {
     fontSize: 12,

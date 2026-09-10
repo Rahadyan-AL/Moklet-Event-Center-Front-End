@@ -19,7 +19,9 @@ export const queryKeys = {
   adminPanitia: ['admin', 'panitia'] as const,
   adminAkademik: ['admin', 'akademik'] as const,
 
-  // ─── Panitia ───
+  // ─── Panitia & General Announcements ───
+  announcements: (eventId?: string, page?: number) =>
+    ['announcements', eventId || '', page || 1] as const,
   panitiaDashboard: ['panitia', 'dashboard'] as const,
   managedEvents: ['panitia', 'events'] as const,
   panitiaEventDetail: (eventId?: string) =>

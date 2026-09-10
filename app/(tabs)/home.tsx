@@ -25,12 +25,14 @@ import api from '../../services/api';
 import { formatDate } from '../../utils/date';
 import {
   getManagedEventsForStudent,
+  getEvents,
   EventItem,
 } from '../../services/panitia/events.service';
 import {
   getAnnouncements,
   AnnouncementItem,
 } from '../../services/panitia/announcements.service';
+import { getFileUrl } from '../../utils/url';
 
 const { width } = Dimensions.get('window');
 const BANNER_WIDTH = width - Spacing.xl * 2;
@@ -89,17 +91,14 @@ export default function HomeScreen() {
     queryFn: async () => {
       const [managedRes, eventsRes, annRes] = await Promise.allSettled([
         getManagedEventsForStudent(user?.student?.id, user?.id),
-        api.get('/events?limit=5'),
+        getEvents(1, 10),
         getAnnouncements(1, 4),
       ]);
 
       const managed: EventItem[] =
         managedRes.status === 'fulfilled' ? managedRes.value : [];
-      let general: EventItem[] = [];
-      if (eventsRes.status === 'fulfilled') {
-        const raw = eventsRes.value;
-        general = Array.isArray(raw) ? raw : (raw as any)?.data || [];
-      }
+      const general: EventItem[] =
+        eventsRes.status === 'fulfilled' ? eventsRes.value : [];
       const annList: AnnouncementItem[] =
         annRes.status === 'fulfilled' ? annRes.value.data : [];
 
@@ -197,7 +196,7 @@ export default function HomeScreen() {
                       <View style={styles.bannerWrapper}>
                         {ev.bannerUrl ? (
                           <Image
-                            source={ev.bannerUrl}
+                            source={{ uri: getFileUrl(ev.bannerUrl) }}
                             style={styles.eventBanner}
                             contentFit="cover"
                             cachePolicy="memory-disk"
@@ -377,7 +376,7 @@ export default function HomeScreen() {
                 >
                   {banner.bannerUrl ? (
                     <Image
-                      source={banner.bannerUrl}
+                      source={{ uri: getFileUrl(banner.bannerUrl) }}
                       style={styles.bannerImage}
                       contentFit="cover"
                       cachePolicy="memory-disk"

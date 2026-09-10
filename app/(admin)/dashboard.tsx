@@ -23,7 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import { getStudents } from '../../services/admin/students.service';
 import { getPanitia } from '../../services/admin/panitia.service';
-import api from '../../services/api';
+import { getEvents } from '../../services/panitia/events.service';
 
 interface DashboardStats {
   totalSiswa: number | null;
@@ -61,9 +61,8 @@ export default function AdminDashboardScreen() {
       // Event Berjalan: hitung yang ONGOING
       let eventBerjalan = 0;
       try {
-        const evRes: any = await api.get('/events?limit=100');
-        const evList: any[] = Array.isArray(evRes) ? evRes : evRes?.data || [];
-        eventBerjalan = evList.filter((e: any) => e.status === 'ONGOING').length;
+        const evList = await getEvents(1, 100);
+        eventBerjalan = evList.filter((e) => e.status === 'ONGOING').length;
       } catch { /* ignore event fetch error */ }
 
       return {

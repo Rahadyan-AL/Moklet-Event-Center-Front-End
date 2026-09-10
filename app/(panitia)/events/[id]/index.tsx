@@ -44,6 +44,7 @@ import { API_URL } from "../../../../services/api";
 import { getStudents, StudentItem } from "../../../../services/admin/students.service";
 import { formatDate } from "../../../../utils/date";
 import { getCategoryIconStyled } from "../../../../utils/icons";
+import { downloadOrOpenGuidebook, getFileUrl } from "../../../../utils/url";
 
 type ActiveTab = "info" | "jadwal" | "panitia" | "lomba";
 
@@ -385,7 +386,7 @@ export default function EventDetailScreen() {
         <View style={styles.bannerWrapper}>
           {event.bannerUrl ? (
             <Image
-              source={event.bannerUrl}
+              source={{ uri: getFileUrl(event.bannerUrl) }}
               style={styles.bannerImg}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -507,15 +508,7 @@ export default function EventDetailScreen() {
                 {event.guidebookUrl ? (
                   <TouchableOpacity
                     style={styles.guidebookBtn}
-                    onPress={() => {
-                      Linking.openURL(event.guidebookUrl!).catch(() => {
-                        Alert.alert(
-                          "Tidak Bisa Membuka",
-                          "Gagal membuka guidebook. Pastikan ada aplikasi PDF viewer terinstall, atau coba lagi.",
-                          [{ text: "OK" }]
-                        );
-                      });
-                    }}
+                    onPress={() => downloadOrOpenGuidebook(event.guidebookUrl, event.name)}
                     activeOpacity={0.85}
                   >
                     <Ionicons name="open-outline" size={16} color="#B81414" />

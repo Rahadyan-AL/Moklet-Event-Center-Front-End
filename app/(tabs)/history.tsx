@@ -54,7 +54,7 @@ export default function HistoryScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Riwayat Pendaftaran</Text>
-        <Text style={styles.headerSub}>Semua pendaftaran event Anda</Text>
+        <Text style={styles.headerSub}>Semua riwayat dan status kepesertaan event Anda</Text>
       </View>
 
       <FlatList
@@ -73,26 +73,33 @@ export default function HistoryScreen() {
                 <Ionicons name={getCategoryIcon(item.categoryName)} size={20} color={item.statusColor} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.eventName}>{item.eventName}</Text>
-                <Text style={styles.branchName}>{item.categoryName}</Text>
+                <Text style={styles.eventName} numberOfLines={1}>{item.eventName}</Text>
+                <Text style={styles.branchName} numberOfLines={1}>{item.categoryName}</Text>
               </View>
               <View style={[styles.badge, { backgroundColor: item.statusBg }]}>
                 <Text style={[styles.badgeText, { color: item.statusColor }]}>{item.statusLabel}</Text>
               </View>
             </View>
+
             <View style={styles.divider} />
+
             <View style={styles.cardBottom}>
               <View style={[styles.metaRow, styles.metaColumn]}>
                 <Ionicons name="calendar-outline" size={13} color={Colors.textSubtitle} />
                 <Text style={styles.metaText} numberOfLines={1}>{item.dateFormatted}</Text>
               </View>
               <View style={[styles.metaRow, styles.metaColumn, styles.teamColumn]}>
-                <Ionicons name={item.isIndividual ? 'person-outline' : 'people-outline'} size={13} color={Colors.textSubtitle} />
+                <Ionicons
+                  name={item.isIndividual ? 'person-outline' : 'people-outline'}
+                  size={13}
+                  color={Colors.textSubtitle}
+                />
                 <Text style={styles.metaText} numberOfLines={1}>{shortenName(item.teamName)}</Text>
               </View>
               {item.teamId ? (
                 <View style={[styles.metaRow, styles.metaColumn, styles.viewRoomColumn]}>
-                  <Text style={styles.viewRoomText}>Lihat Tim {'->'}</Text>
+                  <Text style={styles.viewRoomText}>Lihat Tim</Text>
+                  <Ionicons name="chevron-forward" size={13} color={Colors.primary} />
                 </View>
               ) : null}
             </View>
@@ -117,7 +124,7 @@ export default function HistoryScreen() {
         ListEmptyComponent={!isLoading && !errorMsg ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
-              <Ionicons name="receipt-outline" size={48} color={Colors.textPlaceholder} />
+              <Ionicons name="receipt-outline" size={44} color={Colors.textPlaceholder} />
             </View>
             <Text style={styles.emptyTitle}>Belum Ada Riwayat Pendaftaran</Text>
             <Text style={styles.emptySubtitle}>Pendaftaran event yang kamu ikuti akan muncul di sini.</Text>
@@ -130,8 +137,7 @@ export default function HistoryScreen() {
             colors={[Colors.primary]}
           />
         }
-        
-        ListFooterComponent={<View style={{ height: 16 }} />}
+        ListFooterComponent={<View style={{ height: 24 }} />}
       />
     </SafeAreaView>
   );
@@ -140,42 +146,42 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: '#F8FAFC',
     paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
     backgroundColor: Colors.white,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    color: Colors.primary,
-    textAlign: 'center',
+    color: Colors.textMain,
   },
   headerSub: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSubtitle,
-    textAlign: 'center',
     marginTop: 2,
   },
   list: {
-    padding: Spacing.xl,
-    gap: Spacing.md,
+    padding: Spacing.base,
+    paddingBottom: 32,
   },
   card: {
     backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     padding: Spacing.base,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   cardTop: {
     flexDirection: 'row',
@@ -206,12 +212,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.round,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F1F5F9',
     marginBottom: Spacing.md,
   },
   cardBottom: {
@@ -233,6 +239,7 @@ const styles = StyleSheet.create({
   },
   viewRoomColumn: {
     justifyContent: 'flex-end',
+    gap: 2,
   },
   metaText: {
     fontSize: 12,
@@ -257,7 +264,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FFEBEE',
+    backgroundColor: '#FEE2E2',
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -274,9 +281,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   emptyIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
@@ -285,11 +292,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: Colors.textMain,
     marginBottom: 6,
   },
