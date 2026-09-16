@@ -49,7 +49,7 @@ export default function PageHeader({ onLogout }: PageHeaderProps) {
         onPress={handleLogout}
         activeOpacity={0.7}
       >
-        <Ionicons name="exit-outline" size={24} color="#3D2723" />
+        <Ionicons name="log-out-outline" size={22} color={Colors.primary} />
       </TouchableOpacity>
     </View>
   );
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     padding: Spacing.base,
     marginHorizontal: Spacing.base,
@@ -71,6 +71,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.divider,
   },
   avatar: {
     width: 50,
@@ -97,11 +99,11 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1E1E',
+    color: Colors.textMain,
   },
   subtitle: {
     fontSize: 12,
-    color: '#757575',
+    color: Colors.textSubtitle,
   },
   logoutBtn: {
     padding: 6,

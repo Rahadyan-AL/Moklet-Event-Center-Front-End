@@ -7,12 +7,13 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../lib/react-query';
 import { AuthProvider } from '../context/AuthContext';
+import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
   useEffect(() => {
     // Penanganan khusus Android untuk NavigationBar agar tidak memicu warning di iOS
     if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync('#F2F2F2');
+      NavigationBar.setBackgroundColorAsync(Colors.background);
       NavigationBar.setButtonStyleAsync('dark');
     }
 
@@ -32,7 +33,7 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#F2F2F2' },
+            contentStyle: { backgroundColor: Colors.background },
             animation: 'default',
           }}
         >
@@ -49,7 +50,6 @@ export default function RootLayout() {
           <Stack.Screen name="event-detail" />
           <Stack.Screen name="daftar-lomba" />
           <Stack.Screen name="room-tim" />
-          <Stack.Screen name="arsip-pengumuman" />
         </Stack>
       </AuthProvider>
     </QueryClientProvider>

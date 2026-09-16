@@ -163,7 +163,7 @@ export default function EditEventScreen() {
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Event</Text>
           <View style={{ width: 38 }} />
@@ -277,7 +277,7 @@ export default function EditEventScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff", paddingTop: Platform.OS === "android" ? 36 : 0 },
+  safe: { flex: 1, backgroundColor: "#fff" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

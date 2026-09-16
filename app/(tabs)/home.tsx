@@ -33,6 +33,7 @@ import {
   AnnouncementItem,
 } from '../../services/panitia/announcements.service';
 import { getFileUrl } from '../../utils/url';
+import StatusBadge from '../../components/StatusBadge';
 
 const { width } = Dimensions.get('window');
 const BANNER_WIDTH = width - Spacing.xl * 2;
@@ -63,7 +64,7 @@ function formatRelativeTime(isoStr: string): string {
 
 function getAnnouncementIcon(index: number): { name: any; bg: string; color: string } {
   const icons = [
-    { name: 'megaphone', bg: '#FEE2E2', color: '#B81414' },
+    { name: 'megaphone', bg: '#FEE2E2', color: Colors.primary },
     { name: 'time', bg: '#FEF3C7', color: '#D97706' },
     { name: 'people', bg: '#D1FAE5', color: '#059669' },
     { name: 'information-circle', bg: '#E0E7FF', color: '#4F46E5' },
@@ -208,27 +209,10 @@ export default function HomeScreen() {
                             <Text style={styles.bannerPlaceholderText}>Banner tidak tersedia</Text>
                           </View>
                         )}
-                        <View
-                          style={[
-                            styles.statusBadgeOverlay,
-                            isOngoing ? styles.statusOngoing : styles.statusClosed,
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.statusDot,
-                              { backgroundColor: isOngoing ? '#22C55E' : '#9E9E9E' },
-                            ]}
-                          />
-                          <Text
-                            style={[
-                              styles.statusText,
-                              { color: isOngoing ? '#166534' : '#424242' },
-                            ]}
-                          >
-                            {isOngoing ? 'Sedang Berjalan' : 'Selesai'}
-                          </Text>
-                        </View>
+                        <StatusBadge
+                          status={ev.status}
+                          style={styles.statusBadgeOverlay}
+                        />
                       </View>
 
                       <View style={styles.eventBody}>
@@ -389,9 +373,7 @@ export default function HomeScreen() {
                     </View>
                   )}
                   <View style={styles.bannerOverlay} />
-                  <View style={styles.bannerTag}>
-                    <Text style={styles.bannerTagText}>{banner.status || 'EVENT'}</Text>
-                  </View>
+                  <StatusBadge status={banner.status} style={styles.bannerTag} />
                   <View style={styles.bannerBottom}>
                     <Text style={styles.bannerTitle} numberOfLines={1}>
                       {banner.name}
@@ -422,7 +404,7 @@ export default function HomeScreen() {
             announcements.map((ann, idx) => (
               <View key={ann.id || idx} style={styles.newsCard}>
                 <View style={styles.newsIconBox}>
-                  <Ionicons name="megaphone" size={18} color="#B81414" />
+                  <Ionicons name="megaphone" size={18} color={Colors.primary} />
                 </View>
                 <View style={styles.newsContent}>
                   <Text style={styles.newsTitle} numberOfLines={1}>
@@ -454,7 +436,7 @@ export default function HomeScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setShowLogoutModal(false)}>
           <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
             <View style={styles.modalIconWrap}>
-              <Ionicons name="log-out-outline" size={32} color="#B81414" />
+              <Ionicons name="log-out-outline" size={32} color={Colors.primary} />
             </View>
             <Text style={styles.modalTitle}>Keluar Akun</Text>
             <Text style={styles.modalDesc}>
@@ -481,8 +463,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -594,7 +575,7 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#B81414',
+    color: Colors.primary,
   },
   eventCard: {
     backgroundColor: '#fff',
@@ -687,10 +668,10 @@ const styles = StyleSheet.create({
   pendaftarVal: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#B81414',
+    color: Colors.primary,
   },
   kelolaBtn: {
-    backgroundColor: '#B81414',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 22,
     paddingVertical: 9,
     borderRadius: Radius.lg,
@@ -764,7 +745,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     marginBottom: Spacing.sm,
   },
-  sectionLink: { fontSize: 13, color: '#B81414', fontWeight: '700' },
+  sectionLink: { fontSize: 13, color: Colors.primary, fontWeight: '700' },
   bannerContainer: { gap: Spacing.md, paddingVertical: 4 },
   bannerCard: {
     height: 180,
@@ -781,10 +762,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#B81414',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.sm,
   },
   bannerTagText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   bannerBottom: {
@@ -861,7 +838,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: Radius.lg,
-    backgroundColor: '#B81414',
+    backgroundColor: Colors.primary,
   },
   modalConfirmText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });

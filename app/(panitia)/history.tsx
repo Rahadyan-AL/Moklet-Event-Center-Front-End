@@ -17,6 +17,8 @@ import { router, useFocusEffect } from "expo-router";
 import { Colors, Spacing, Radius } from "../../constants/theme";
 import { getEvents, EventItem } from "../../services/panitia/events.service";
 import { formatDate } from "../../utils/date";
+import { getFileUrl } from "../../utils/url";
+import StatusBadge from "../../components/StatusBadge";
 
 export default function HistoryEventsScreen() {
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -51,7 +53,7 @@ export default function HistoryEventsScreen() {
     >
       {item.bannerUrl ? (
         <Image
-          source={item.bannerUrl}
+          source={{ uri: getFileUrl(item.bannerUrl) }}
           style={styles.banner}
           contentFit="cover"
           cachePolicy="memory-disk"
@@ -69,9 +71,7 @@ export default function HistoryEventsScreen() {
           <Text style={styles.cardDate}>{formatDate(item.eventDate)}</Text>
         </View>
       </View>
-      <View style={styles.closedBadge}>
-        <Text style={styles.closedText}>Selesai</Text>
-      </View>
+      <StatusBadge status="CLOSED" />
     </TouchableOpacity>
   );
 
@@ -113,7 +113,7 @@ export default function HistoryEventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F5F7FA", paddingTop: Platform.OS === "android" ? 36 : 0 },
+  safe: { flex: 1, backgroundColor: Colors.background },
   header: {
     backgroundColor: "#fff", paddingHorizontal: Spacing.base, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: "#F0F0F0",

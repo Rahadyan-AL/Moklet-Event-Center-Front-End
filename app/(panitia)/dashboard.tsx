@@ -276,8 +276,7 @@ export default function PanitiaDashboardScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
-    paddingTop: Platform.OS === "android" ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   scroll: {
     padding: Spacing.base,

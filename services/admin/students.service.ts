@@ -1,6 +1,6 @@
 // services/admin/students.service.ts
-import { Linking } from 'react-native';
 import api, { API_URL } from '../api';
+import { downloadAuthenticated } from '../../utils/download';
 
 export interface StudentItem {
   id: string;
@@ -162,13 +162,7 @@ export function getExportPromotionUrl(): string {
  */
 export async function exportStudentsForPromotion(): Promise<void> {
   try {
-    const url = getExportPromotionUrl();
-    const canOpen = await Linking.canOpenURL(url);
-    if (canOpen) {
-      await Linking.openURL(url);
-    } else {
-      await Linking.openURL(url);
-    }
+    await downloadAuthenticated('/students/export-for-promotion', 'promosi-kelas.xlsx');
   } catch (error: any) {
     console.error('[ERROR exportStudentsForPromotion]:', error);
     throw error;
@@ -222,9 +216,13 @@ export async function previewRosterSync(fileUri: string, fileName: string, mimeT
 /**
  * Eksekusi sync roster (POST /students/sync/execute).
  */
-export async function executeRosterSync(data?: any): Promise<RosterSyncExecuteResult> {
+export async function executeRosterSync(fileUri: string, fileName: string, mimeType: string): Promise<RosterSyncExecuteResult> {
   try {
-    const res: any = await api.post('/students/sync/execute', data || {});
+    const formData = new FormData();
+    formData.append('file', { uri: fileUri, name: fileName, type: mimeType } as any);
+    const res: any = await api.post('/students/sync/execute', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return res?.data || res;
   } catch (error: any) {
     console.error('[ERROR executeRosterSync]:', error?.response?.data || error);

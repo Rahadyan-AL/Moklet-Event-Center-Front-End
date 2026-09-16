@@ -34,7 +34,7 @@ export function getCategoryIconStyled(name: string): CategoryIconStyled {
     return { name: 'basketball', bg: '#FEE2E2', color: '#DC2626' };
   }
   if (lower.includes('musik') || lower.includes('band') || lower.includes('acoustic') || lower.includes('lagu') || lower.includes('tari')) {
-    return { name: 'musical-notes', bg: '#FCE7F3', color: '#B81414' };
+    return { name: 'musical-notes', bg: '#FCE7F3', color: '#C62828' };
   }
   if (lower.includes('futsal') || lower.includes('bola')) {
     return { name: 'football', bg: '#DCFCE7', color: '#166534' };

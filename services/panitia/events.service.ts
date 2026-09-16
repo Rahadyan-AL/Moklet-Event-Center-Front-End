@@ -1,6 +1,6 @@
 // services/panitia/events.service.ts
-import { Linking } from 'react-native';
 import api, { API_URL } from '../api';
+import { downloadAuthenticated } from '../../utils/download';
 
 /**
  * Get URL for exporting category report (GET /export/categories/:categoryId).
@@ -14,13 +14,7 @@ export function getExportCategoryUrl(categoryId: string): string {
  */
 export async function exportCategoryReport(categoryId: string): Promise<void> {
   try {
-    const url = getExportCategoryUrl(categoryId);
-    const canOpen = await Linking.canOpenURL(url);
-    if (canOpen) {
-      await Linking.openURL(url);
-    } else {
-      await Linking.openURL(url);
-    }
+    await downloadAuthenticated(`/export/categories/${categoryId}`, `laporan-kategori-${categoryId}.xlsx`);
   } catch (error: any) {
     console.error(`[ERROR exportCategoryReport] Category ID ${categoryId}:`, error);
     throw error;
@@ -100,6 +94,11 @@ export interface ScheduleItem {
 export interface CommitteeMemberItem {
   studentId: string; role: string; name: string; nis: string;
   avatarUrl: string | null; classLabel: string;
+}
+
+export interface ManagedTeamItem {
+  id: string; name: string; code: string; status: string;
+  teamMembers: { student: { id: string; name: string } }[];
 }
 
 // ─── Normalisers ───────────────────────────────────────────────────────────────
@@ -233,6 +232,15 @@ export async function deleteCategory(id: string): Promise<void> {
   await api.delete(`/categories/${id}`);
 }
 
+export async function getTeamsByCategory(id: string): Promise<ManagedTeamItem[]> {
+  const res: any = await api.get(`/categories/${id}/teams`);
+  return Array.isArray(res) ? res : (res?.data ?? []);
+}
+
+export async function disqualifyTeam(id: string): Promise<void> {
+  await api.patch(`/teams/${id}/status`, { status: 'DISQUALIFIED' });
+}
+
 // ─── Schedules ─────────────────────────────────────────────────────────────────
 export async function getSchedulesByEvent(eventId: string): Promise<ScheduleItem[]> {
   const res: any = await api.get(`/events/${eventId}/schedules`);
@@ -270,36 +278,25 @@ export async function removeCommitteeMember(eventId: string, studentId: string):
 }
 
 export async function getManagedEventsForStudent(
-  studentId?: string,
-  userId?: string
+  _studentId?: string,
+  _userId?: string
 ): Promise<EventItem[]> {
-  try {
-    const allEvents = await getEvents(1, 50);
-    if (!studentId && !userId) return [];
+  const res: any = await api.get('/events/managed/me');
+  const raw: RawEvent[] = Array.isArray(res) ? res : (res?.data ?? []);
+  return raw.map(normalizeEvent);
+}
 
-    const checks = await Promise.allSettled(
-      allEvents.map(async (ev) => {
-        if (ev.creatorId && userId && ev.creatorId === userId) return { ev, isMember: true };
-        try {
-          const com = await getCommittee(ev.id);
-          const isMember = com.some((m) => m.studentId === studentId);
-          return { ev, isMember };
-        } catch {
-          return { ev, isMember: false };
-        }
-      })
-    );
+export async function uploadScheduleDresscode(id: string, uri: string): Promise<void> {
+  const formData = new FormData();
+  const filename = uri.split('/').pop() || 'dresscode.jpg';
+  const extension = filename.split('.').pop() || 'jpeg';
+  formData.append('file', { uri, name: filename, type: `image/${extension}` } as any);
+  await api.patch(`/schedules/${id}/dresscode-image`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
 
-    const managed: EventItem[] = [];
-    checks.forEach((res) => {
-      if (res.status === 'fulfilled' && res.value.isMember) {
-        managed.push(res.value.ev);
-      }
-    });
-
-    return managed;
-  } catch {
-    return [];
-  }
+export async function exportEventReport(eventId: string): Promise<void> {
+  await downloadAuthenticated(`/export/events/${eventId}`, `laporan-event-${eventId}.xlsx`);
 }
 

@@ -182,7 +182,7 @@ export default function RoomTimScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.primary} />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Room Tim</Text>
           <View style={{ width: 40 }} />
@@ -200,7 +200,7 @@ export default function RoomTimScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.primary} />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Room Tim</Text>
           <View style={{ width: 40 }} />
@@ -230,7 +230,7 @@ export default function RoomTimScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.primary} />
+          <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center', flex: 1 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>{team.name}</Text>
@@ -473,8 +473,7 @@ export default function RoomTimScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',

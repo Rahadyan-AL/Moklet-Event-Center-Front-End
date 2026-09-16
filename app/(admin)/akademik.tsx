@@ -22,7 +22,9 @@ import { Colors, Spacing, Radius } from '../../constants/theme';
 import {
   getClasses,
   createClass,
+  updateClass,
   deleteClass,
+  bulkCreateClasses,
   ClassItem,
   GradeOption,
 } from '../../services/admin/classes.service';
@@ -68,9 +70,10 @@ interface AddClassModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  item?: ClassItem | null;
 }
 
-function AddClassModal({ visible, onClose, onSuccess }: AddClassModalProps) {
+function AddClassModal({ visible, onClose, onSuccess, item }: AddClassModalProps) {
   const [grade, setGrade] = useState<GradeOption>('X');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -87,6 +90,12 @@ function AddClassModal({ visible, onClose, onSuccess }: AddClassModalProps) {
   };
 
   const { translateY, overlayOpacity, panResponder } = useDragToClose(handleClose);
+
+  useEffect(() => {
+    if (!visible) return;
+    setGrade(item?.grade || 'X');
+    setName(item?.name || '');
+  }, [visible, item]);
 
   const handleSubmit = async () => {
     let cleanName = name.trim();
@@ -109,7 +118,8 @@ function AddClassModal({ visible, onClose, onSuccess }: AddClassModalProps) {
     setLoading(true);
     setError('');
     try {
-      await createClass({ grade, name: cleanName });
+      if (item) await updateClass(item.id, { grade, name: cleanName });
+      else await createClass({ grade, name: cleanName });
       reset();
       onSuccess();
     } catch (e: any) {
@@ -144,7 +154,7 @@ function AddClassModal({ visible, onClose, onSuccess }: AddClassModalProps) {
           </View>
 
           <View style={ms.sheetHeader}>
-            <Text style={ms.sheetTitle}>Tambah Kelas</Text>
+            <Text style={ms.sheetTitle}>{item ? 'Edit Kelas' : 'Tambah Kelas'}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={24} color="#607D8B" />
             </TouchableOpacity>
@@ -222,7 +232,7 @@ function AddClassModal({ visible, onClose, onSuccess }: AddClassModalProps) {
             onPress={handleSubmit}
             disabled={loading || !name.trim()}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={ms.submitBtnText}>Simpan Kelas</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={ms.submitBtnText}>{item ? 'Simpan Perubahan' : 'Simpan Kelas'}</Text>}
           </TouchableOpacity>
           </ScrollView>
         </Animated.View>
@@ -410,6 +420,7 @@ export default function AkademikScreen() {
   const queryClient = useQueryClient();
   const [selectedGradeFilter, setSelectedGradeFilter] = useState<'ALL' | GradeOption>('ALL');
   const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [editClass, setEditClass] = useState<ClassItem | null>(null);
   const [showChangeYearModal, setShowChangeYearModal] = useState(false);
 
   const {
@@ -472,6 +483,33 @@ export default function AkademikScreen() {
     );
   };
 
+  const handleAutoRombelPrompt = () => {
+    const targetGrade: GradeOption = selectedGradeFilter === 'ALL' ? 'X' : selectedGradeFilter;
+    Alert.alert(
+      `Auto Rombel (Kelas ${targetGrade})`,
+      `Buat paket kelas standar SMK Telkom (RPL 1-8, TKJ 1-6, PG 1-2) untuk tingkat ${targetGrade}?\n\nKelas yang sudah terdaftar akan otomatis dilewati (skip).`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Buat Rombel',
+          onPress: async () => {
+            const list: { grade: GradeOption; name: string }[] = [];
+            for (let i = 1; i <= 8; i++) list.push({ grade: targetGrade, name: `RPL ${i}` });
+            for (let i = 1; i <= 6; i++) list.push({ grade: targetGrade, name: `TKJ ${i}` });
+            for (let i = 1; i <= 2; i++) list.push({ grade: targetGrade, name: `PG ${i}` });
+            try {
+              const res = await bulkCreateClasses(list);
+              await invalidateAkademikData();
+              Alert.alert('Auto Rombel Selesai', `${res.successCount} kelas baru dibuat, ${res.skippedCount} sudah ada sebelumnya.`);
+            } catch (e: any) {
+              Alert.alert('Gagal', getErrorMessage(e, 'Gagal membuat rombel otomatis.'));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Filter kelas berdasarkan grade filter aktif
   const filteredClasses = classes.filter((c) => {
     if (selectedGradeFilter === 'ALL') return true;
@@ -511,6 +549,10 @@ export default function AkademikScreen() {
             {count}
           </Text>
         </View>
+
+        <TouchableOpacity style={styles.classDeleteBtn} onPress={() => setEditClass(cls)}>
+          <Ionicons name="pencil-outline" size={18} color={Colors.info} />
+        </TouchableOpacity>
 
         {/* Action Delete */}
         <TouchableOpacity
@@ -580,14 +622,24 @@ export default function AkademikScreen() {
             <Text style={styles.sectionTitle}>Kelola Kelas</Text>
             <Text style={styles.sectionSub}>{classes.length} kelas terdaftar di sistem</Text>
           </View>
-          <TouchableOpacity
-            style={styles.addClassBtn}
-            onPress={() => setShowAddClassModal(true)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addClassBtnText}>Tambah Kelas</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity
+              style={[styles.addClassBtn, { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1' }]}
+              onPress={handleAutoRombelPrompt}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="flash-outline" size={16} color={Colors.primary} />
+              <Text style={[styles.addClassBtnText, { color: Colors.textMain, fontWeight: '700' }]}>Auto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addClassBtn}
+              onPress={() => setShowAddClassModal(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.addClassBtnText}>Tambah</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Filter Tingkat (Grade Tabs) */}
@@ -637,10 +689,12 @@ export default function AkademikScreen() {
 
       {/* Modals */}
       <AddClassModal
-        visible={showAddClassModal}
-        onClose={() => setShowAddClassModal(false)}
+        visible={showAddClassModal || Boolean(editClass)}
+        item={editClass}
+        onClose={() => { setShowAddClassModal(false); setEditClass(null); }}
         onSuccess={() => {
           setShowAddClassModal(false);
+          setEditClass(null);
           invalidateAkademikData();
         }}
       />
@@ -664,8 +718,7 @@ export default function AkademikScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   header: {
     backgroundColor: '#fff',

@@ -8,7 +8,7 @@ import { Colors } from '../../constants/theme';
 import { RoleGuard } from '../../components/RoleGuard';
 
 const ADMIN_TABS = [
-  { name: 'dashboard', label: 'Home', icon: 'home-outline' as const, iconActive: 'home' as const },
+  { name: 'dashboard', label: 'Beranda', icon: 'home-outline' as const, iconActive: 'home' as const },
   { name: 'siswa', label: 'Siswa', icon: 'people-outline' as const, iconActive: 'people' as const },
   { name: 'panitia', label: 'Panitia', icon: 'person-add-outline' as const, iconActive: 'person-add' as const },
   { name: 'akademik', label: 'Akademik', icon: 'school-outline' as const, iconActive: 'school' as const },
@@ -40,49 +40,51 @@ function AdminTabBar({ state, descriptors, navigation }: any) {
                 <Ionicons name={tab.iconActive} size={18} color="#fff" />
                 <Text style={styles.activePillText}>{tab.label}</Text>
               </View>
-            ) : (
-              <View style={styles.inactiveTab}>
-                <Ionicons name={tab.icon} size={22} color="#78909C" />
-                <Text style={styles.inactiveTabText}>{tab.label}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
+              ) : (
+                <View style={styles.inactiveTab}>
+                  <Ionicons name={tab.icon} size={22} color="#64748B" />
+                  <Text style={styles.inactiveTabText}>{tab.label}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  }
 
-export default function AdminLayout() {
-  return (
-    <RoleGuard allowedRoles={['ADMIN_KESISWAAN']}>
-      <Tabs
-        screenOptions={{ headerShown: false }}
-        tabBar={(props) => <AdminTabBar {...props} />}
-      >
-        <Tabs.Screen name="dashboard" />
-        <Tabs.Screen name="siswa" />
-        <Tabs.Screen name="panitia" />
-        <Tabs.Screen name="akademik" />
-      </Tabs>
-    </RoleGuard>
-  );
-}
+  export default function AdminLayout() {
+    return (
+      <RoleGuard allowedRoles={['ADMIN_KESISWAAN']}>
+        <Tabs
+          screenOptions={{ headerShown: false }}
+          tabBar={(props) => <AdminTabBar {...props} />}
+        >
+          <Tabs.Screen name="dashboard" options={{ title: 'Beranda' }} />
+          <Tabs.Screen name="siswa" options={{ title: 'Siswa' }} />
+          <Tabs.Screen name="panitia" options={{ title: 'Panitia' }} />
+          <Tabs.Screen name="akademik" options={{ title: 'Akademik' }} />
+        </Tabs>
+      </RoleGuard>
+    );
+  }
 
-const styles = StyleSheet.create({
-  tabBarContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: 8,
-    paddingHorizontal: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 8,
-  },
+  const styles = StyleSheet.create({
+    tabBarContainer: {
+      flexDirection: 'row',
+      backgroundColor: '#fff',
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      borderTopWidth: 1,
+      borderTopColor: Colors.divider,
+      paddingTop: 8,
+      paddingHorizontal: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
+      elevation: 8,
+    },
   tabItem: {
     flex: 1,
     alignItems: 'center',

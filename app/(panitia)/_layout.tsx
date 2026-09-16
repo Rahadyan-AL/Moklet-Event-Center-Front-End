@@ -16,13 +16,13 @@ import { RoleGuard } from "../../components/RoleGuard";
 const PANITIA_TABS = [
   {
     name: "dashboard",
-    label: "Home",
+    label: "Beranda",
     iconActive: "home" as const,
     iconInactive: "home-outline" as const,
   },
   {
     name: "events/index",
-    label: "Events",
+    label: "Event",
     iconActive: "calendar" as const,
     iconInactive: "calendar-outline" as const,
   },
@@ -34,7 +34,7 @@ const PANITIA_TABS = [
   },
   {
     name: "history",
-    label: "History",
+    label: "Riwayat",
     iconActive: "time" as const,
     iconInactive: "time-outline" as const,
   },
@@ -83,7 +83,7 @@ function PanitiaTabBar({ state, navigation }: any) {
                 </View>
               ) : (
                 <View style={styles.inactiveIconWrapper}>
-                  <Ionicons name={item.iconInactive} size={22} color="#78909C" />
+                  <Ionicons name={item.iconInactive} size={22} color="#64748B" />
                   <Text style={styles.inactiveLabel}>{item.label}</Text>
                 </View>
               )}
@@ -99,10 +99,10 @@ export default function PanitiaLayout() {
   return (
     <RoleGuard allowedRoles={["PANITIA", "SISWA", "ADMIN_KESISWAAN"]}>
       <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <PanitiaTabBar {...props} />}>
-        <Tabs.Screen name="dashboard" options={{ title: "Home" }} />
-        <Tabs.Screen name="events/index" options={{ title: "Events" }} />
+        <Tabs.Screen name="dashboard" options={{ title: "Beranda" }} />
+        <Tabs.Screen name="events/index" options={{ title: "Event" }} />
         <Tabs.Screen name="announcements" options={{ title: "Info" }} />
-        <Tabs.Screen name="history" options={{ title: "History" }} />
+        <Tabs.Screen name="history" options={{ title: "Riwayat" }} />
       </Tabs>
     </RoleGuard>
   );
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
     borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
+    borderTopColor: Colors.divider,
   },
   tabBarContent: {
     flexDirection: "row",

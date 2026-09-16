@@ -22,6 +22,7 @@ import { getEventById, getCategoriesByEvent, EventItem, CategoryItem } from '../
 import { formatDate } from '../utils/date';
 import { getFileUrl, downloadOrOpenGuidebook } from '../utils/url';
 import { getCategoryIcon } from '../utils/icons';
+import StatusBadge from '../components/StatusBadge';
 
 export default function EventDetailScreen() {
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
@@ -65,7 +66,7 @@ export default function EventDetailScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detail Event</Text>
           <View style={{ width: 40 }} />
@@ -83,7 +84,7 @@ export default function EventDetailScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detail Event</Text>
           <View style={{ width: 40 }} />
@@ -113,7 +114,7 @@ export default function EventDetailScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
+          <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>Detail Event</Text>
         <View style={{ width: 40 }} />
@@ -147,27 +148,11 @@ export default function EventDetailScreen() {
             </View>
           )}
           <View style={styles.bannerStatusOverlay}>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: isClosed ? '#FEE2E2' : '#DCFCE7' },
-              ]}
-            >
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: isClosed ? Colors.error : Colors.success },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  { color: isClosed ? Colors.error : '#15803D' },
-                ]}
-              >
-                {isClosed ? 'Pendaftaran Ditutup' : 'Sedang Berlangsung'}
-              </Text>
-            </View>
+            <StatusBadge
+              status={event.status}
+              label={isClosed ? 'Pendaftaran Ditutup' : 'Aktif'}
+              style={styles.statusBadge}
+            />
           </View>
         </View>
 
@@ -309,7 +294,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
     flexDirection: 'row',

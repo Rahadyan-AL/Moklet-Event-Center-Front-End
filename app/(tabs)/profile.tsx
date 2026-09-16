@@ -84,23 +84,9 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.headerAvatarImg} cachePolicy="memory-disk" />
-          ) : (
-            <View style={styles.headerAvatarBorder}>
-              <View style={styles.headerAvatarInner}>
-                <Text style={styles.headerAvatarInitial}>{username.charAt(0).toUpperCase()}</Text>
-              </View>
-            </View>
-          )}
-          <View>
-            <Text style={styles.greetLabel}>Profil Pengguna</Text>
-            <Text style={styles.greetName} numberOfLines={1}>{username}</Text>
-          </View>
-        </View>
+        <Text style={styles.headerTitle}>Profil Saya</Text>
         <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} onPress={() => setShowLogoutModal(true)}>
-          <Ionicons name="log-out-outline" size={20} color={Colors.primary} />
+          <Ionicons name="log-out-outline" size={22} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -244,7 +230,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
     flexDirection: 'row',
@@ -256,46 +241,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    flex: 1,
-  },
-  headerAvatarImg: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-  },
-  headerAvatarBorder: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primaryLight,
-  },
-  headerAvatarInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerAvatarInitial: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  greetLabel: {
-    fontSize: 11,
-    color: Colors.textSubtitle,
-    fontWeight: '600',
-  },
-  greetName: {
-    fontSize: 15,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '800',
     color: Colors.textMain,
   },

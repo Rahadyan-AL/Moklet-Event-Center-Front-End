@@ -1,5 +1,5 @@
 // app/(admin)/siswa.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { cacheTime, queryKeys } from '../../constants/query';
 import {
   getStudents,
   createStudent,
+  updateStudent,
   deleteStudent,
   importStudentsExcel,
   bindManualStudent,
@@ -55,9 +56,10 @@ interface AddStudentModalProps {
   classes: ClassItem[];
   onClose: () => void;
   onSuccess: () => void;
+  student?: StudentItem | null;
 }
 
-function AddStudentModal({ visible, classes, onClose, onSuccess }: AddStudentModalProps) {
+function AddStudentModal({ visible, classes, onClose, onSuccess, student }: AddStudentModalProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [nis, setNis] = useState('');
@@ -82,9 +84,16 @@ function AddStudentModal({ visible, classes, onClose, onSuccess }: AddStudentMod
 
   const selectedClass = classes.find((c) => c.id === selectedClassId);
 
+  useEffect(() => {
+    if (!visible) return;
+    setName(student?.name || '');
+    setNis(student?.nis || '');
+    setSelectedClassId(student?.classId || student?.class?.id || '');
+  }, [visible, student]);
+
   // TanStack Query Mutation untuk tambah siswa
   const addStudentMutation = useMutation({
-    mutationFn: (dto: CreateStudentDto) => createStudent(dto),
+    mutationFn: (dto: CreateStudentDto) => student ? updateStudent(student.id, dto) : createStudent(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminStudents });
       queryClient.invalidateQueries({ queryKey: queryKeys.adminStats });
@@ -156,7 +165,7 @@ function AddStudentModal({ visible, classes, onClose, onSuccess }: AddStudentMod
 
           {/* Header */}
           <View style={ms.sheetHeader}>
-            <Text style={ms.sheetTitle}>Tambah Siswa</Text>
+            <Text style={ms.sheetTitle}>{student ? 'Edit Siswa' : 'Tambah Siswa'}</Text>
             <TouchableOpacity onPress={handleClose}>
               <Ionicons name="close" size={24} color="#607D8B" />
             </TouchableOpacity>
@@ -248,7 +257,7 @@ function AddStudentModal({ visible, classes, onClose, onSuccess }: AddStudentMod
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={ms.submitBtnText}>Simpan Siswa</Text>
+              <Text style={ms.submitBtnText}>{student ? 'Simpan Perubahan' : 'Simpan Siswa'}</Text>
             )}
           </TouchableOpacity>
         </Animated.View>
@@ -690,7 +699,8 @@ function SyncRosterModal({ visible, onClose, onSuccess }: SyncRosterModalProps) 
   });
 
   const executeMutation = useMutation({
-    mutationFn: (data?: any) => executeRosterSync(data),
+    mutationFn: (fileData: { uri: string; name: string; mimeType: string }) =>
+      executeRosterSync(fileData.uri, fileData.name, fileData.mimeType),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminStudents });
       queryClient.invalidateQueries({ queryKey: queryKeys.adminStats });
@@ -726,8 +736,9 @@ function SyncRosterModal({ visible, onClose, onSuccess }: SyncRosterModalProps) 
   };
 
   const handleExecute = () => {
+    if (!file) return;
     setError('');
-    executeMutation.mutate(previewData);
+    executeMutation.mutate(file);
   };
 
   const loading = previewMutation.isPending;
@@ -819,6 +830,7 @@ export default function SiswaScreen() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editTargetStudent, setEditTargetStudent] = useState<StudentItem | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPromotionModal, setShowPromotionModal] = useState(false);
   const [showSyncRosterModal, setShowSyncRosterModal] = useState(false);
@@ -911,6 +923,9 @@ export default function SiswaScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setEditTargetStudent(item)}>
+            <Ionicons name="pencil-outline" size={18} color={Colors.info} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: item.account ? '#E8F5E9' : '#FFF3E0' }]}
             onPress={() => setBindTargetStudent(item)}
@@ -1021,11 +1036,13 @@ export default function SiswaScreen() {
 
       {/* Modals */}
       <AddStudentModal
-        visible={showAddModal}
+        visible={showAddModal || Boolean(editTargetStudent)}
         classes={classes}
-        onClose={() => setShowAddModal(false)}
+        student={editTargetStudent}
+        onClose={() => { setShowAddModal(false); setEditTargetStudent(null); }}
         onSuccess={() => {
           setShowAddModal(false);
+          setEditTargetStudent(null);
           invalidateStudentData();
         }}
       />
@@ -1071,8 +1088,7 @@ export default function SiswaScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',

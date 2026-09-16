@@ -33,6 +33,13 @@ export async function createClass(dto: CreateClassDto): Promise<ClassItem> {
   return res?.data || res;
 }
 
+export async function bulkCreateClasses(
+  classes: CreateClassDto[]
+): Promise<{ successCount: number; skippedCount: number }> {
+  const res: any = await api.post('/classes/bulk', { classes });
+  return res?.data || res;
+}
+
 export async function updateClass(id: string, dto: UpdateClassDto): Promise<ClassItem> {
   const res: any = await api.patch(`/classes/${id}`, dto);
   return res?.data || res;

@@ -15,7 +15,6 @@ import {
   FlatList,
   Alert,
   RefreshControl,
-  Linking,
   KeyboardAvoidingView,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -34,13 +33,15 @@ import {
   deleteSchedule,
   removeCommitteeMember,
   addCommitteeMember,
-  exportCategoryReport,
+  exportCategoryReport, exportEventReport,
+  getTeamsByCategory,
+  disqualifyTeam,
+  ManagedTeamItem,
   EventItem,
   CategoryItem,
   ScheduleItem,
   CommitteeMemberItem,
 } from "../../../../services/panitia/events.service";
-import { API_URL } from "../../../../services/api";
 import { getStudents, StudentItem } from "../../../../services/admin/students.service";
 import { formatDate } from "../../../../utils/date";
 import { getCategoryIconStyled } from "../../../../utils/icons";
@@ -140,6 +141,11 @@ export default function EventDetailScreen() {
   const [students, setStudents] = useState<StudentItem[]>([]);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
+
+  // Modal Kelola Tim state
+  const [teamCategory, setTeamCategory] = useState<CategoryItem | null>(null);
+  const [managedTeams, setManagedTeams] = useState<ManagedTeamItem[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
 
   const {
     data,
@@ -287,6 +293,21 @@ export default function EventDetailScreen() {
       [
         { text: "Batal", style: "cancel" },
         {
+          text: "Lihat & Kelola Tim",
+          onPress: async () => {
+            setTeamCategory(cat);
+            setLoadingTeams(true);
+            try {
+              const res = await getTeamsByCategory(cat.id);
+              setManagedTeams(res);
+            } catch {
+              setManagedTeams([]);
+            } finally {
+              setLoadingTeams(false);
+            }
+          },
+        },
+        {
           text: "Ekspor Laporan Kategori",
           onPress: async () => {
             try {
@@ -331,15 +352,16 @@ export default function EventDetailScreen() {
     ]);
   };
 
-  const handleExportData = () => {
+  const handleExportData = async () => {
     if (!eventId) return;
-    const downloadUrl = `${API_URL}/export/events/${eventId}`;
-    Linking.openURL(downloadUrl).catch(() => {
+    try {
+      await exportEventReport(eventId);
+    } catch {
       Alert.alert(
-        "Export Data",
-        `Buka browser ke URL ini untuk mengunduh Excel:\n${downloadUrl}`
+        "Gagal Ekspor",
+        "Laporan tidak dapat diunduh. Coba login ulang lalu ulangi."
       );
-    });
+    }
   };
 
   if (loading) {
@@ -460,7 +482,7 @@ export default function EventDetailScreen() {
               <View style={styles.card}>
                 <View style={styles.cardHeaderRow}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                    <Ionicons name="document-text-outline" size={20} color="#B81414" />
+                    <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
                     <Text style={styles.cardTitle}>Deskripsi Event</Text>
                   </View>
                   <TouchableOpacity
@@ -484,7 +506,7 @@ export default function EventDetailScreen() {
                 <View style={styles.cardHeaderRow}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
                     <View style={styles.pdfIconBadge}>
-                      <Ionicons name="book" size={16} color="#B81414" />
+                      <Ionicons name="book" size={16} color={Colors.primary} />
                     </View>
                     <View>
                       <Text style={styles.cardTitle}>Guidebook Peserta</Text>
@@ -511,7 +533,7 @@ export default function EventDetailScreen() {
                     onPress={() => downloadOrOpenGuidebook(event.guidebookUrl, event.name)}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="open-outline" size={16} color="#B81414" />
+                    <Ionicons name="open-outline" size={16} color={Colors.primary} />
                     <Text style={styles.guidebookText}>Lihat & Unduh PDF Guidebook</Text>
                   </TouchableOpacity>
                 ) : null}
@@ -521,7 +543,7 @@ export default function EventDetailScreen() {
               <View style={styles.card}>
                 <View style={styles.cardHeaderRow}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                    <Ionicons name="help-circle-outline" size={20} color="#B81414" />
+                    <Ionicons name="help-circle-outline" size={20} color={Colors.primary} />
                     <Text style={styles.cardTitle}>Kontak Panitia Inti</Text>
                   </View>
                   <TouchableOpacity
@@ -540,7 +562,7 @@ export default function EventDetailScreen() {
                   committee.slice(0, 3).map((c, i) => (
                     <View key={c.studentId || i} style={styles.contactRow}>
                       <View style={styles.contactIconCircle}>
-                        <Ionicons name="person-outline" size={16} color="#B81414" />
+                        <Ionicons name="person-outline" size={16} color={Colors.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.contactName}>
@@ -610,6 +632,14 @@ export default function EventDetailScreen() {
                       <Text style={styles.scheduleDate}>{formatDate(sch.date)}</Text>
                     </View>
                     <Text style={styles.scheduleText}>{sch.dresscodeText}</Text>
+                    {sch.dresscodeImageUrl ? (
+                      <Image
+                        source={{ uri: getFileUrl(sch.dresscodeImageUrl) }}
+                        style={styles.dresscodeImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    ) : null}
                   </View>
                 ))
               ) : (
@@ -866,6 +896,89 @@ export default function EventDetailScreen() {
           />
         )}
       </SwipeableBottomModal>
+
+      {/* Modal Kelola Tim */}
+      <SwipeableBottomModal
+        visible={Boolean(teamCategory)}
+        onClose={() => setTeamCategory(null)}
+      >
+        <View style={ms.sheetHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={ms.sheetTitle}>Kelola Tim Lomba</Text>
+            <Text style={styles.scheduleDate}>{teamCategory?.name} • {managedTeams.length} tim terdaftar</Text>
+          </View>
+          <TouchableOpacity onPress={() => setTeamCategory(null)}>
+            <Ionicons name="close" size={24} color="#757575" />
+          </TouchableOpacity>
+        </View>
+
+        {loadingTeams ? (
+          <View style={{ paddingVertical: 32, alignItems: "center" }}>
+            <ActivityIndicator color={Colors.primary} />
+          </View>
+        ) : managedTeams.length === 0 ? (
+          <View style={{ paddingVertical: 32, alignItems: "center", gap: 8 }}>
+            <Ionicons name="people-outline" size={40} color="#BDBDBD" />
+            <Text style={styles.emptyText}>Belum ada tim yang mendaftar di cabang lomba ini.</Text>
+          </View>
+        ) : (
+          <ScrollView style={{ maxHeight: 380, marginTop: 8 }} showsVerticalScrollIndicator={false}>
+            {managedTeams.map((team) => (
+              <View key={team.id} style={[styles.memberCard, { marginBottom: Spacing.sm }]}>
+                <View style={styles.memberInfo}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Text style={styles.memberName}>{team.name}</Text>
+                    <View style={{ backgroundColor: "#F1F5F9", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: "#475569" }}>{team.code}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.memberSub}>
+                    {team.teamMembers.length} Anggota • Status: {team.status}
+                  </Text>
+                </View>
+
+                {team.status !== "DISQUALIFIED" ? (
+                  <TouchableOpacity
+                    style={[styles.addSmallBtn, { backgroundColor: Colors.error }]}
+                    onPress={() => {
+                      Alert.alert(
+                        "Diskualifikasi Tim",
+                        `Apakah Anda yakin ingin mendiskualifikasi tim "${team.name}"?`,
+                        [
+                          { text: "Batal", style: "cancel" },
+                          {
+                            text: "Diskualifikasi",
+                            style: "destructive",
+                            onPress: async () => {
+                              try {
+                                await disqualifyTeam(team.id);
+                                setManagedTeams((prev) =>
+                                  prev.map((t) => (t.id === team.id ? { ...t, status: "DISQUALIFIED" } : t))
+                                );
+                                await invalidateEventDetailData();
+                                Alert.alert("Sukses", `Tim "${team.name}" telah didiskualifikasi.`);
+                              } catch {
+                                Alert.alert("Error", "Gagal mendiskualifikasi tim.");
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="ban-outline" size={14} color="#fff" />
+                    <Text style={styles.addSmallText}>DQ</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={[styles.roleBadge, { backgroundColor: "#FFEBEE" }]}>
+                    <Text style={[styles.roleBadgeText, { color: "#C62828" }]}>Didiskualifikasi</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </SwipeableBottomModal>
     </SafeAreaView>
   );
 }
@@ -873,8 +986,7 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
-    paddingTop: Platform.OS === "android" ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   centered: {
     flex: 1,
@@ -932,7 +1044,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#B81414",
+    backgroundColor: Colors.primary,
     borderRadius: Radius.lg,
     paddingVertical: 12,
     marginTop: 8,
@@ -951,9 +1063,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
-  tabItemActive: { borderBottomColor: "#B81414" },
+  tabItemActive: { borderBottomColor: Colors.primary },
   tabLabel: { fontSize: 13, fontWeight: "600", color: "#757575" },
-  tabLabelActive: { color: "#B81414", fontWeight: "800" },
+  tabLabelActive: { color: Colors.primary, fontWeight: "800" },
   tabContent: { padding: Spacing.base },
   card: {
     backgroundColor: "#fff",
@@ -992,7 +1104,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FEE2E2",
   },
-  guidebookText: { fontSize: 13, color: "#B81414", fontWeight: "700" },
+  guidebookText: { fontSize: 13, color: Colors.primary, fontWeight: "700" },
   contactRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1020,7 +1132,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#B81414",
+    backgroundColor: Colors.primary,
     borderRadius: Radius.lg,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -1042,6 +1154,7 @@ const styles = StyleSheet.create({
   scheduleMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
   scheduleDate: { fontSize: 12, color: "#9E9E9E" },
   scheduleText: { fontSize: 13, color: "#424242", marginTop: 4 },
+  dresscodeImage: { width: '100%', height: 160, borderRadius: Radius.lg, marginTop: Spacing.sm },
   memberCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1143,7 +1256,7 @@ const styles = StyleSheet.create({
   pendaftarTotal: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#B81414",
+    color: Colors.primary,
     marginTop: 2,
   },
   catStatusBadge: {
@@ -1225,7 +1338,7 @@ const ms = StyleSheet.create({
   studentName: { fontSize: 14, fontWeight: "600", color: "#1E1E1E" },
   studentSub: { fontSize: 12, color: "#757575" },
   addMemberBtn: {
-    backgroundColor: "#B81414",
+    backgroundColor: Colors.primary,
     borderRadius: Radius.md,
     paddingHorizontal: 12,
     paddingVertical: 6,

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Radius } from '../../constants/theme';
+import StatusBadge from '../../components/StatusBadge';
 import { cacheTime, queryKeys } from '../../constants/query';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/date';
@@ -79,27 +80,10 @@ export default function EventsScreen() {
               <Text style={styles.bannerPlaceholderText}>Banner tidak tersedia</Text>
             </View>
           )}
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: isOngoing ? '#DCFCE7' : '#FEE2E2' },
-            ]}
-          >
-            <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: isOngoing ? Colors.success : Colors.error },
-              ]}
-            />
-            <Text
-              style={[
-                styles.statusBadgeText,
-                { color: isOngoing ? '#15803D' : Colors.error },
-              ]}
-            >
-              {isOngoing ? 'Aktif' : 'Selesai'}
-            </Text>
-          </View>
+          <StatusBadge
+            status={item.status}
+            style={styles.statusBadge}
+          />
         </View>
 
         <View style={styles.cardBody}>
@@ -205,7 +189,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
     backgroundColor: Colors.white,

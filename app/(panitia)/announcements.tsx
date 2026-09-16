@@ -316,7 +316,7 @@ export default function AnnouncementsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F5F7FA", paddingTop: Platform.OS === "android" ? 36 : 0 },
+  safe: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     backgroundColor: "#fff", paddingHorizontal: Spacing.base, paddingVertical: 12,

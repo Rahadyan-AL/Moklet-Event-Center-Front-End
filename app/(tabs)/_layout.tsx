@@ -20,13 +20,13 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const TAB_ITEMS = [
     {
       name: 'home',
-      label: 'Home',
+      label: 'Beranda',
       iconActive: 'home',
       iconInactive: 'home-outline',
     },
     {
       name: 'events',
-      label: 'Events',
+      label: 'Event',
       iconActive: 'calendar',
       iconInactive: 'calendar-outline',
     },
@@ -38,7 +38,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
     },
     {
       name: 'history',
-      label: 'History',
+      label: 'Riwayat',
       iconActive: 'time',
       iconInactive: 'time-outline',
     },
@@ -90,7 +90,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                 </View>
               ) : (
                 <View style={styles.inactiveBox}>
-                  <Ionicons name={item.iconInactive as any} size={20} color="#8E9BAE" />
+                  <Ionicons name={item.iconInactive as any} size={20} color="#64748B" />
                   <Text style={styles.inactiveLabel}>{item.label}</Text>
                 </View>
               )}
@@ -110,10 +110,10 @@ export default function TabLayout() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Home' }} />
-      <Tabs.Screen name="events" options={{ title: 'Events' }} />
+      <Tabs.Screen name="home" options={{ title: 'Beranda' }} />
+      <Tabs.Screen name="events" options={{ title: 'Event' }} />
       <Tabs.Screen name="info" options={{ title: 'Info' }} />
-      <Tabs.Screen name="history" options={{ title: 'History' }} />
+      <Tabs.Screen name="history" options={{ title: 'Riwayat' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil' }} />
     </Tabs>
   );
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   activePill: {
-    backgroundColor: '#B81414',
+    backgroundColor: Colors.primary,
     borderRadius: 14,
     paddingVertical: 6,
     paddingHorizontal: 10,

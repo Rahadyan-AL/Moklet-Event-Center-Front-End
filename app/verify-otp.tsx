@@ -140,7 +140,7 @@ export default function VerifyOTPScreen() {
                 style={styles.backButton}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="arrow-back" size={22} color={Colors.primary} />
+                <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Moklet Event Center</Text>
               <View style={styles.headerSpacer} />
@@ -233,7 +233,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.white,
-    paddingTop: Platform.OS === 'android' ? 32 : 0,
   },
   header: {
     flexDirection: 'row',

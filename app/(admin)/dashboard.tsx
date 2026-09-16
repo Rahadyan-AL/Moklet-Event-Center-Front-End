@@ -212,8 +212,7 @@ export default function AdminDashboardScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   scrollContent: {
     padding: Spacing.base,

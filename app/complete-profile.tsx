@@ -361,7 +361,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.white,
-    paddingTop: Platform.OS === 'android' ? 32 : 0,
   },
   scroll: { flex: 1 },
   scrollContent: {
@@ -369,16 +368,16 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
   },
   headerBar: {
-    backgroundColor: '#F2F5F7',
+    backgroundColor: Colors.white,
     paddingVertical: 18,
     paddingHorizontal: Spacing.base,
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#E1E7EC',
+    borderBottomColor: Colors.divider,
   },
   headerText: {
-    color: '#0B2E4A',
+    color: Colors.textMain,
     fontSize: 18,
     fontWeight: '700',
   },

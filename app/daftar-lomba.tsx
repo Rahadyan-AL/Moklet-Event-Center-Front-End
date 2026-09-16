@@ -227,7 +227,7 @@ export default function DaftarLombaScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={20} color={Colors.textMain} />
+          <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: 8 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>Pilih Cabang Lomba</Text>
@@ -524,7 +524,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? 36 : 0,
   },
   header: {
     flexDirection: 'row',

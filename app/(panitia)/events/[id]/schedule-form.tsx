@@ -19,7 +19,7 @@ import { Colors, Spacing, Radius } from "../../../../constants/theme";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../../../constants/query";
 import {
-  createSchedule, updateSchedule, getSchedulesByEvent,
+  createSchedule, updateSchedule, getSchedulesByEvent, uploadScheduleDresscode,
 } from "../../../../services/panitia/events.service";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
@@ -34,6 +34,7 @@ export default function ScheduleFormScreen() {
   const [dayLabel, setDayLabel] = useState("");
   const [date, setDate] = useState("");
   const [dresscodeText, setDresscodeText] = useState("");
+  const [dresscodeImage, setDresscodeImage] = useState<string | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateObj, setDateObj] = useState(new Date());
@@ -103,11 +104,13 @@ export default function ScheduleFormScreen() {
     };
 
     try {
+      let scheduleId = targetSchId;
       if (isEdit && targetSchId) {
         await updateSchedule(targetSchId, dto);
       } else {
-        await createSchedule(targetEventId, dto);
+        scheduleId = (await createSchedule(targetEventId, dto)).id;
       }
+      if (dresscodeImage && scheduleId) await uploadScheduleDresscode(scheduleId, dresscodeImage);
 
       // Sinkronkan cache: detail event panitia & siswa ter-update.
       await Promise.all([
@@ -150,7 +153,7 @@ export default function ScheduleFormScreen() {
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={goBackToEvent} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
+            <Ionicons name="arrow-back" size={22} color={Colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{isEdit ? "Edit Jadwal" : "Tambah Jadwal Baru"}</Text>
           <View style={{ width: 38 }} />
@@ -220,6 +223,19 @@ export default function ScheduleFormScreen() {
             value={dresscodeText}
             onChangeText={setDresscodeText}
           />
+          <TouchableOpacity
+            style={styles.imagePicker}
+            onPress={async () => {
+              const picker = require('expo-image-picker');
+              const permission = await picker.requestMediaLibraryPermissionsAsync();
+              if (!permission.granted) return Alert.alert('Izin Ditolak', 'Akses galeri diperlukan.');
+              const result = await picker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.8 });
+              if (!result.canceled) setDresscodeImage(result.assets[0].uri);
+            }}
+          >
+            <Ionicons name={dresscodeImage ? 'checkmark-circle' : 'image-outline'} size={20} color={Colors.primary} />
+            <Text style={styles.imagePickerText}>{dresscodeImage ? 'Gambar dresscode dipilih' : 'Pilih contoh gambar dresscode'}</Text>
+          </TouchableOpacity>
         </ScrollView>
 
         <View style={styles.bottomBar}>
@@ -237,7 +253,7 @@ export default function ScheduleFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff", paddingTop: Platform.OS === "android" ? 36 : 0 },
+  safe: { flex: 1, backgroundColor: "#fff" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -245,6 +261,8 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 18, fontWeight: "800", color: "#1E1E1E" },
+  imagePicker: { marginTop: Spacing.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.primarySoft },
+  imagePickerText: { color: Colors.primary, fontWeight: '700' },
   scroll: { padding: Spacing.base, paddingBottom: 40 },
   errorBox: {
     flexDirection: "row", gap: 8, backgroundColor: "#FFEBEE", borderRadius: Radius.lg,

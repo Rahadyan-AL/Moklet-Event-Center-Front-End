@@ -20,6 +20,8 @@ import { Colors, Spacing, Radius } from "../../../constants/theme";
 import { cacheTime, queryKeys } from '../../../constants/query';
 import { getEvents, EventItem } from "../../../services/panitia/events.service";
 import { formatDate } from "../../../utils/date";
+import { getFileUrl } from "../../../utils/url";
+import StatusBadge from "../../../components/StatusBadge";
 
 export default function EventsListScreen() {
   const [search, setSearch] = useState("");
@@ -57,7 +59,7 @@ export default function EventsListScreen() {
         <View style={styles.bannerWrapper}>
           {item.bannerUrl ? (
             <Image
-              source={item.bannerUrl}
+              source={{ uri: getFileUrl(item.bannerUrl) }}
               style={styles.banner}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -69,11 +71,10 @@ export default function EventsListScreen() {
               <Text style={styles.bannerPlaceholderText}>Banner tidak tersedia</Text>
             </View>
           )}
-          {isOngoing && (
-            <View style={styles.baruBadge}>
-              <Text style={styles.baruBadgeText}>Baru</Text>
-            </View>
-          )}
+          <StatusBadge
+            status={item.status}
+            style={styles.statusBadgeOverlay}
+          />
         </View>
 
         {/* Content */}
@@ -188,8 +189,7 @@ export default function EventsListScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
-    paddingTop: Platform.OS === "android" ? 36 : 0,
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: "row",
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#B81414",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -281,19 +281,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748B",
   },
-  baruBadge: {
+  statusBadgeOverlay: {
     position: "absolute",
     top: 12,
     left: 12,
-    backgroundColor: "rgba(220, 252, 231, 0.95)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.round,
-  },
-  baruBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#166534",
   },
   cardBody: {
     padding: Spacing.base,
@@ -319,7 +310,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   kelolaBtn: {
-    backgroundColor: "#B81414",
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 8,
     borderRadius: Radius.lg,
