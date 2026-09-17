@@ -21,7 +21,6 @@ export async function exportCategoryReport(categoryId: string): Promise<void> {
   }
 }
 
-// ─── Raw API Shapes ────────────────────────────────────────────────────────────
 export interface RawEvent {
   id: string;
   name: string;
@@ -33,6 +32,13 @@ export interface RawEvent {
   guidebookUrl?: string | null;
   creatorId?: string;
   createdById?: string;
+  created_by?: string;
+  owner_id?: string;
+  ownerId?: string;
+  creator_id?: string;
+  createdBy?: { id: string; [key: string]: any } | null;
+  creator?: { id: string; [key: string]: any } | null;
+  owner?: { id: string; [key: string]: any } | null;
   createdAt?: string;
   _count?: { categories?: number; registrations?: number; teams?: number };
   categories?: RawCategory[];
@@ -78,7 +84,11 @@ export interface EventItem {
   id: string; name: string; description: string; contactInfo: string | null;
   eventDate: string;
   status: string; bannerUrl: string | null; guidebookUrl: string | null;
-  creatorId: string; createdAt: string;
+  creatorId: string;
+  createdById?: string;
+  created_by?: string;
+  owner_id?: string;
+  createdAt: string;
   totalRegistrations?: number;
   totalCategories?: number;
   committeeAvatars: { studentId: string; name: string; photoUrl: string | null }[];
@@ -120,12 +130,32 @@ export function normalizeEvent(raw: RawEvent): EventItem {
     );
   }
 
+  const resolvedCreatorId =
+    raw.creatorId ||
+    raw.createdById ||
+    raw.created_by ||
+    raw.owner_id ||
+    raw.ownerId ||
+    raw.creator_id ||
+    raw.createdBy?.id ||
+    raw.creator?.id ||
+    raw.owner?.id ||
+    '';
+
   return {
-    id: raw.id, name: raw.name || '', description: raw.description || '',
+    id: raw.id,
+    name: raw.name || '',
+    description: raw.description || '',
     contactInfo: raw.contactInfo || null,
-    eventDate: raw.eventDate || '', status: raw.status || 'ONGOING',
-    bannerUrl: raw.bannerUrl || null, guidebookUrl: raw.guidebookUrl || null,
-    creatorId: raw.creatorId || raw.createdById || '', createdAt: raw.createdAt || '',
+    eventDate: raw.eventDate || '',
+    status: raw.status || 'ONGOING',
+    bannerUrl: raw.bannerUrl || null,
+    guidebookUrl: raw.guidebookUrl || null,
+    creatorId: resolvedCreatorId,
+    createdById: resolvedCreatorId,
+    created_by: resolvedCreatorId,
+    owner_id: resolvedCreatorId,
+    createdAt: raw.createdAt || '',
     totalRegistrations,
     totalCategories: count?.categories ?? cats.length,
     committeeAvatars: (raw.eventCommitteeMembers || []).map((m) => ({
@@ -135,6 +165,7 @@ export function normalizeEvent(raw: RawEvent): EventItem {
     })),
   };
 }
+
 
 export function normalizeCategory(raw: RawCategory): CategoryItem {
   const count = raw._count;
@@ -180,14 +211,38 @@ export type UpdateCategoryDto = Partial<CreateCategoryDto>;
 export interface CreateScheduleDto { date: string; dayLabel: string; dresscodeText: string; }
 export type UpdateScheduleDto = Partial<CreateScheduleDto>;
 
+export interface EventFilterOptions {
+  creatorId?: string;
+  created_by?: string;
+  owner_id?: string;
+  [key: string]: any;
+}
+
 // ─── Events CRUD ───────────────────────────────────────────────────────────────
 export async function getEvents(
   page = 1,
   limit = 50,
-  status?: 'ONGOING' | 'CLOSED' | 'ALL'
+  status?: 'ONGOING' | 'CLOSED' | 'ALL',
+  filter?: EventFilterOptions
 ): Promise<EventItem[]> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (status) params.set('status', status);
+
+  const creator = filter?.created_by || filter?.creatorId || filter?.owner_id;
+  if (creator) {
+    // Kirim parameter query ke endpoint /events sesuai konvensi backend:
+    // ?created_by=... (snake_case)
+    // ?creatorId=... (camelCase)
+    // ?owner_id=... (alternative ownership)
+    if (filter?.created_by) params.set('created_by', filter.created_by);
+    else params.set('created_by', creator);
+
+    if (filter?.creatorId) params.set('creatorId', filter.creatorId);
+    else params.set('creatorId', creator);
+
+    if (filter?.owner_id) params.set('owner_id', filter.owner_id);
+  }
+
   const res: any = await api.get(`/events?${params.toString()}`);
   const raw: RawEvent[] = Array.isArray(res) ? res : (res?.data ?? []);
   return raw.map(normalizeEvent);

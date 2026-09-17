@@ -15,12 +15,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { Colors, Spacing, Radius } from "../../constants/theme";
+import { useAuth } from "../../context/AuthContext";
 import { getEvents, EventItem } from "../../services/panitia/events.service";
 import { formatDate } from "../../utils/date";
 import { getFileUrl } from "../../utils/url";
 import StatusBadge from "../../components/StatusBadge";
 
 export default function HistoryEventsScreen() {
+  const { user } = useAuth();
+  const userId = user?.id;
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,15 +34,32 @@ export default function HistoryEventsScreen() {
     try {
       // Backend GET /events hanya mengembalikan ONGOING by default --
       // minta CLOSED secara eksplisit untuk halaman riwayat.
-      const all = await getEvents(1, 100, 'CLOSED');
-      setEvents(all);
+      const all = await getEvents(
+        1,
+        100,
+        'CLOSED',
+        userId ? { created_by: userId, creatorId: userId, owner_id: userId } : undefined
+      );
+      const myEvents = userId
+        ? all.filter((ev) => {
+            const creator =
+              ev.creatorId ||
+              ev.created_by ||
+              ev.owner_id ||
+              (ev as any).createdById ||
+              (ev as any).createdBy?.id ||
+              (ev as any).creator?.id;
+            return creator === userId;
+          })
+        : [];
+      setEvents(myEvents);
     } catch {
       setError("Gagal memuat riwayat event. Tarik untuk mencoba ulang.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [userId]);
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); load(); };

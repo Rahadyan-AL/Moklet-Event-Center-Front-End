@@ -26,19 +26,37 @@ import { getEvents, EventItem } from "../../services/panitia/events.service";
 import { getPanitia } from "../../services/admin/panitia.service";
 
 export default function PanitiaDashboardScreen() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const userId = user?.id;
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const { data, isLoading, isRefetching, error, refetch } = useQuery({
-    queryKey: queryKeys.panitiaDashboard,
+    queryKey: [...queryKeys.panitiaDashboard, userId || 'guest'],
     staleTime: cacheTime.warm,
     queryFn: async () => {
       const [eventsRes, panitiaRes] = await Promise.allSettled([
-        getEvents(1, 100),
+        getEvents(
+          1,
+          100,
+          undefined,
+          userId ? { created_by: userId, creatorId: userId, owner_id: userId } : undefined
+        ),
         getPanitia(),
       ]);
 
-      const events = eventsRes.status === 'fulfilled' ? eventsRes.value : [];
+      const rawEvents = eventsRes.status === 'fulfilled' ? eventsRes.value : [];
+      const events = userId
+        ? rawEvents.filter((ev) => {
+            const creator =
+              ev.creatorId ||
+              ev.created_by ||
+              ev.owner_id ||
+              (ev as any).createdById ||
+              (ev as any).createdBy?.id ||
+              (ev as any).creator?.id;
+            return creator === userId;
+          })
+        : [];
       const panitiaList = panitiaRes.status === 'fulfilled' ? panitiaRes.value : [];
       const panitiaCount =
         panitiaList.filter((p) => p.isActive).length || panitiaList.length;

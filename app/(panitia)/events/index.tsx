@@ -1,5 +1,4 @@
-// app/(panitia)/events/index.tsx
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +17,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Radius } from "../../../constants/theme";
 import { cacheTime, queryKeys } from '../../../constants/query';
+import { useAuth } from "../../../context/AuthContext";
 import { getEvents, EventItem } from "../../../services/panitia/events.service";
 import { formatDate } from "../../../utils/date";
 import { getFileUrl } from "../../../utils/url";
@@ -25,14 +25,22 @@ import StatusBadge from "../../../components/StatusBadge";
 
 export default function EventsListScreen() {
   const [search, setSearch] = useState("");
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const userId = user?.id;
 
-  // Warm cache: daftar event yang dikelola tampil instan saat layar dibuka ulang.
+  // Warm cache: daftar event yang dibuat/dikelola panitia yang sedang login
   const { data: events = [], isLoading, isRefetching, error, refetch } = useQuery<EventItem[]>({
-    queryKey: queryKeys.managedEvents,
+    queryKey: [...queryKeys.managedEvents, userId || 'guest'],
     staleTime: cacheTime.warm,
-    queryFn: () => getEvents(1, 50),
+    enabled: !!userId,
+    queryFn: () =>
+      getEvents(
+        1,
+        50,
+        undefined,
+        userId ? { created_by: userId, creatorId: userId, owner_id: userId } : undefined
+      ),
   });
-
 
   useFocusEffect(
     useCallback(() => {
@@ -43,13 +51,31 @@ export default function EventsListScreen() {
     }, [])
   );
 
-
   const loadError = error ? 'Gagal memuat event. Tarik untuk mencoba ulang.' : '';
 
-  const filteredEvents = events.filter((ev) =>
-    ev.name.toLowerCase().includes(search.toLowerCase()) ||
-    (ev.description && ev.description.toLowerCase().includes(search.toLowerCase()))
-  );
+  // Filter hanya menampilkan event yang dibuat / dimiliki oleh panitia yang sedang login
+  const myEvents = useMemo(() => {
+    if (!userId) return [];
+    return events.filter((ev) => {
+      const creator =
+        ev.creatorId ||
+        ev.created_by ||
+        ev.owner_id ||
+        (ev as any).createdById ||
+        (ev as any).createdBy?.id ||
+        (ev as any).creator?.id;
+      return creator === userId;
+    });
+  }, [events, userId]);
+
+  const filteredEvents = useMemo(() => {
+    return myEvents.filter((ev) =>
+      ev.name.toLowerCase().includes(search.toLowerCase()) ||
+      (ev.description && ev.description.toLowerCase().includes(search.toLowerCase()))
+    );
+  }, [myEvents, search]);
+
+  const isPageLoading = authLoading || (isLoading && !!userId);
 
   const renderItem = ({ item }: { item: EventItem }) => {
     const isOngoing = item.status === "ONGOING";
@@ -143,7 +169,7 @@ export default function EventsListScreen() {
         </View>
       </View>
 
-      {isLoading ? (
+      {isPageLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
@@ -173,10 +199,16 @@ export default function EventsListScreen() {
             <View style={styles.centered}>
               <Ionicons name="calendar-outline" size={52} color="#BDBDBD" />
               <Text style={styles.emptyTitle}>
-                {search ? "Event tidak ditemukan" : "Belum ada event"}
+                {!isAuthenticated || !userId
+                  ? "Belum Masuk"
+                  : search
+                  ? "Event tidak ditemukan"
+                  : "Belum ada event"}
               </Text>
               <Text style={styles.emptySub}>
-                {search
+                {!isAuthenticated || !userId
+                  ? "Silakan login terlebih dahulu untuk melihat event yang Anda kelola."
+                  : search
                   ? "Coba kata kunci pencarian lain."
                   : 'Ketuk tombol "+" di atas untuk membuat event baru.'}
               </Text>
