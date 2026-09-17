@@ -39,12 +39,11 @@ export interface RawTeamMember {
   id?: string;
   studentId: string;
   isLeader?: boolean;
-  role?: string;
   student?: {
     id: string;
     name: string;
     nis?: string;
-    avatarUrl?: string | null;
+    photoUrl?: string | null;
     class?: {
       id?: string;
       grade: string;
@@ -57,7 +56,7 @@ export interface RawTeam {
   id: string;
   name: string;
   code: string;
-  isLocked?: boolean;
+  // Backend hanya punya status: OPEN | LOCKED | FULL | DISQUALIFIED
   status?: string;
   categoryId?: string;
   category?: {
@@ -73,8 +72,6 @@ export interface RawTeam {
   };
   members?: RawTeamMember[];
   teamMembers?: RawTeamMember[];
-  leaderStudentId?: string;
-  creatorId?: string;
   createdAt?: string;
 }
 
@@ -104,7 +101,7 @@ export interface TeamMemberItem {
   name: string;
   nis: string;
   className: string;
-  avatarUrl: string | null;
+  photoUrl: string | null;
   isLeader: boolean;
   role: string;
 }
@@ -126,30 +123,41 @@ export interface TeamDetailItem {
 }
 
 // ─── Normalizers ───────────────────────────────────────────────────────────────
-export function normalizeRegistration(raw: RawRegistration): RegistrationHistoryItem {
-  const status = (raw.status || 'REGISTERED').toUpperCase();
 
-  let statusLabel = 'Terdaftar';
-  let statusColor = '#2E7D32';
-  let statusBg = '#E8F5E9';
+/**
+ * Mapping label status kepesertaan.
+ * Backend /registrations/me mengirim `status` turunan dari status Team:
+ * REGISTERED (aktif) | CONFIRMED (tim terkunci/individu) | DISQUALIFIED.
+ * Fallback lama (WAITING/PENDING/REJECTED) dipertahankan demi kompatibilitas.
+ */
+export function describeRegistrationStatus(status: string): {
+  statusLabel: string;
+  statusColor: string;
+  statusBg: string;
+} {
+  const normalized = (status || 'REGISTERED').toUpperCase();
 
-  if (status === 'WAITING' || status === 'PENDING') {
-    statusLabel = 'Menunggu';
-    statusColor = '#F57C00';
-    statusBg = '#FFF3E0';
-  } else if (status === 'REJECTED' || status === 'DITOLAK') {
-    statusLabel = 'Ditolak';
-    statusColor = '#D32F2F';
-    statusBg = '#FFEBEE';
-  } else if (status === 'DISQUALIFIED') {
-    statusLabel = 'Didiskualifikasi';
-    statusColor = '#7B1FA2';
-    statusBg = '#F3E5F5';
-  } else if (status === 'REGISTERED' || status === 'APPROVED') {
-    statusLabel = 'Terdaftar';
-    statusColor = '#2E7D32';
-    statusBg = '#E8F5E9';
+  if (normalized === 'DISQUALIFIED') {
+    return { statusLabel: 'Didiskualifikasi', statusColor: '#7B1FA2', statusBg: '#F3E5F5' };
   }
+  if (normalized === 'CONFIRMED' || normalized === 'APPROVED') {
+    return { statusLabel: 'Terkonfirmasi', statusColor: '#1565C0', statusBg: '#E3F2FD' };
+  }
+  if (normalized === 'WAITING' || normalized === 'PENDING') {
+    return { statusLabel: 'Menunggu', statusColor: '#F57C00', statusBg: '#FFF3E0' };
+  }
+  if (normalized === 'REJECTED' || normalized === 'DITOLAK') {
+    return { statusLabel: 'Ditolak', statusColor: '#D32F2F', statusBg: '#FFEBEE' };
+  }
+  return { statusLabel: 'Terdaftar', statusColor: '#2E7D32', statusBg: '#E8F5E9' };
+}
+
+export function normalizeRegistration(raw: RawRegistration): RegistrationHistoryItem {
+  // Prioritas: status turunan dari backend -> status team (DISQUALIFIED
+  // tetap terlihat meski backend lama) -> default REGISTERED.
+  const teamStatus = raw.team?.status?.toUpperCase();
+  const status = (raw.status || teamStatus || 'REGISTERED').toUpperCase();
+  const { statusLabel, statusColor, statusBg } = describeRegistrationStatus(status);
 
   const rawDate = raw.createdAt || '';
   let dateFormatted = '-';
@@ -164,7 +172,11 @@ export function normalizeRegistration(raw: RawRegistration): RegistrationHistory
     }
   }
 
-  const isIndividual = !raw.teamId && !raw.team;
+  // Backend SELALU membuat Team walau lomba individu (tim isi 1, status
+  // LOCKED). Individu ditentukan dari maxMember kategori, bukan ketiadaan
+  // teamId.
+  const isIndividual =
+    raw.category?.maxMember != null ? raw.category.maxMember === 1 : !raw.teamId && !raw.team;
 
   return {
     id: raw.id,
@@ -179,18 +191,16 @@ export function normalizeRegistration(raw: RawRegistration): RegistrationHistory
     eventId: raw.category?.eventId || raw.category?.event?.id || '',
     eventName: raw.category?.event?.name || 'Event Moklet',
     teamId: raw.teamId || raw.team?.id || null,
-    teamName: raw.team?.name || (isIndividual ? 'Individu' : 'Tim'),
+    teamName: isIndividual ? 'Individu' : raw.team?.name || 'Tim',
     teamCode: raw.team?.code || null,
-    isTeamLocked: Boolean(raw.team?.isLocked),
+    isTeamLocked: raw.team?.status === 'LOCKED',
     isIndividual,
   };
 }
 
 export function normalizeTeamMember(raw: RawTeamMember, leaderStudentId?: string): TeamMemberItem {
   const student = raw.student;
-  const isLeader = Boolean(
-    raw.isLeader || (leaderStudentId && raw.studentId === leaderStudentId) || raw.role?.toLowerCase() === 'leader'
-  );
+  const isLeader = Boolean(raw.isLeader || (leaderStudentId && raw.studentId === leaderStudentId));
 
   const className = student?.class
     ? `${student.class.grade || ''} ${student.class.name || ''}`.trim()
@@ -202,15 +212,18 @@ export function normalizeTeamMember(raw: RawTeamMember, leaderStudentId?: string
     name: student?.name || 'Anggota Tim',
     nis: student?.nis || '-',
     className,
-    avatarUrl: student?.avatarUrl || null,
+    photoUrl: student?.photoUrl || null,
     isLeader,
     role: isLeader ? 'Leader' : 'Anggota',
   };
 }
 
 export function normalizeTeamDetail(raw: RawTeam): TeamDetailItem {
-  const leaderId = raw.leaderStudentId || raw.creatorId || '';
   const rawMembers = raw.members || raw.teamMembers || [];
+  // Leader identik dari flag isLeader anggota (backend tidak punya
+  // leaderStudentId di model Team).
+  const leaderId =
+    rawMembers.find((m) => m.isLeader)?.studentId || rawMembers[0]?.studentId || '';
   const members = rawMembers.map((m) => normalizeTeamMember(m, leaderId));
 
   // Urutkan leader paling atas
@@ -220,8 +233,9 @@ export function normalizeTeamDetail(raw: RawTeam): TeamDetailItem {
     id: raw.id,
     name: raw.name || 'Tim Lomba',
     code: raw.code || '',
-    isLocked: Boolean(raw.isLocked),
-    status: raw.status || 'ACTIVE',
+    // Backend tidak mengirim field isLocked -- status LOCKED yang jadi acuan.
+    isLocked: raw.status === 'LOCKED',
+    status: raw.status || 'OPEN',
     categoryId: raw.categoryId || raw.category?.id || '',
     categoryName: raw.category?.name || '',
     minMember: raw.category?.minMember ?? 1,

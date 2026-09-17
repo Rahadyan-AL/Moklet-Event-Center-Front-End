@@ -98,7 +98,7 @@ export default function EventsScreen() {
               <TouchableOpacity
                 style={styles.kelolaBtn}
                 activeOpacity={0.85}
-                onPress={() => router.push({ pathname: '/(panitia)/events/[id]', params: { id: item.id } } as any)}
+                onPress={() => router.push({ pathname: '/(komite)/manage', params: { eventId: item.id } } as any)}
               >
                 <Ionicons name="settings-outline" size={14} color={Colors.white} />
                 <Text style={styles.kelolaBtnText}>Kelola Event</Text>
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     paddingHorizontal: Spacing.base,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
   headerTitle: {
     fontSize: 20,

@@ -114,8 +114,10 @@ export default function EventsListScreen() {
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => router.push("/(panitia)/events/create" as any)}
+          activeOpacity={0.85}
         >
           <Ionicons name="add" size={18} color="#fff" />
+          <Text style={styles.addBtnText}>Buat Event</Text>
         </TouchableOpacity>
       </View>
 
@@ -198,6 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingHorizontal: Spacing.base,
     paddingVertical: 12,
+    minHeight: 62,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
   },
@@ -215,13 +218,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: "row", alignItems: "center", backgroundColor: Colors.primary,
+    borderRadius: Radius.xl, paddingHorizontal: 14, paddingVertical: 8, gap: 4,
   },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   searchWrapper: {
     backgroundColor: "#fff",
     paddingHorizontal: Spacing.base,

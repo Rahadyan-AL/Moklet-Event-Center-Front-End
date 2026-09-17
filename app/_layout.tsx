@@ -41,12 +41,14 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
           <Stack.Screen name="verify-otp" />
+          <Stack.Screen name="reset-password" />
           <Stack.Screen name="setup-password" />
           <Stack.Screen name="complete-profile" />
           <Stack.Screen name="google-oauth" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(admin)" />
           <Stack.Screen name="(panitia)" />
+          <Stack.Screen name="(komite)" />
           <Stack.Screen name="event-detail" />
           <Stack.Screen name="daftar-lomba" />
           <Stack.Screen name="room-tim" />

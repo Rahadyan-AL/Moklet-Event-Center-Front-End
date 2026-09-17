@@ -28,7 +28,7 @@ import {
   AnnouncementItem,
 } from "../../services/panitia/announcements.service";
 import { formatDate } from "../../utils/date";
-import { getManagedEventsForStudent, getEvents, EventItem } from "../../services/panitia/events.service";
+import { getManagedEventsForStudent, EventItem } from "../../services/panitia/events.service";
 import { useAuth } from "../../context/AuthContext";
 
 export default function AnnouncementsScreen() {
@@ -51,7 +51,10 @@ export default function AnnouncementsScreen() {
     queryFn: async () => {
       const [annRes, evRes] = await Promise.allSettled([
         getAnnouncements(1, 50),
-        getEvents(1, 50),
+        // Chip target pakai event yang DIIKELOLA user (dibuat / jadi
+        // committee) -- bukan semua event ONGOING. Committee (SISWA) cuma
+        // boleh buat pengumuman untuk event yang mereka kelola.
+        getManagedEventsForStudent(),
       ]);
 
       return {
@@ -64,6 +67,9 @@ export default function AnnouncementsScreen() {
 
   const announcements = data?.announcements || [];
   const events = data?.events || [];
+  // Committee = akun SISWA yang jadi anggota event. Backend hanya
+  // mengizinkan global announcement untuk PANITIA/ADMIN_KESISWAAN.
+  const isCommitteeStudent = user?.role === "SISWA";
 
   const invalidateAnnouncementData = async () => {
     await Promise.all([
@@ -128,6 +134,10 @@ export default function AnnouncementsScreen() {
   const handleSubmit = async () => {
     if (!title.trim()) { setModalError("Judul pengumuman wajib diisi."); return; }
     if (!content.trim()) { setModalError("Isi pengumuman wajib diisi."); return; }
+    if (isCommitteeStudent && !selectedEventId) {
+      setModalError("Committee hanya bisa membuat pengumuman untuk event yang dikelola. Pilih event tujuan.");
+      return;
+    }
 
     setSubmitting(true);
     setModalError("");
@@ -255,14 +265,17 @@ export default function AnnouncementsScreen() {
             {/* Target Event (only on Create) */}
             {!editId && (
               <>
-                <Text style={ms.label}>Target Event (Opsional)</Text>
+                <Text style={ms.label}>Target Pengumuman</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-                  <TouchableOpacity
-                    style={[ms.chip, !selectedEventId ? ms.chipActive : null]}
-                    onPress={() => setSelectedEventId("")}
-                  >
-                    <Text style={[ms.chipText, !selectedEventId ? ms.chipTextActive : null]}>Global (Semua)</Text>
-                  </TouchableOpacity>
+                  {/* Global hanya untuk PANITIA / ADMIN_KESISWAAN */}
+                  {!isCommitteeStudent && (
+                    <TouchableOpacity
+                      style={[ms.chip, !selectedEventId ? ms.chipActive : null]}
+                      onPress={() => setSelectedEventId("")}
+                    >
+                      <Text style={[ms.chipText, !selectedEventId ? ms.chipTextActive : null]}>Global (Semua)</Text>
+                    </TouchableOpacity>
+                  )}
                   {events.map((ev) => {
                     const isSel = selectedEventId === ev.id;
                     return (
@@ -276,6 +289,11 @@ export default function AnnouncementsScreen() {
                     );
                   })}
                 </ScrollView>
+                {isCommitteeStudent && events.length === 0 ? (
+                  <Text style={{ fontSize: 12, color: "#9E9E9E", marginTop: 4 }}>
+                    Kamu belum jadi committee event mana pun, jadi belum bisa membuat pengumuman.
+                  </Text>
+                ) : null}
               </>
             )}
 
@@ -320,6 +338,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     backgroundColor: "#fff", paddingHorizontal: Spacing.base, paddingVertical: 12,
+    minHeight: 62,
     borderBottomWidth: 1, borderBottomColor: "#F0F0F0",
   },
   headerTitle: { fontSize: 20, fontWeight: "800", color: "#1E1E1E" },

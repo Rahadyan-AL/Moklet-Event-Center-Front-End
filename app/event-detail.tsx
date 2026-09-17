@@ -18,7 +18,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Radius } from '../constants/theme';
 import { cacheTime, queryKeys } from '../constants/query';
-import { getEventById, getCategoriesByEvent, EventItem, CategoryItem } from '../services/panitia/events.service';
+import { getEventById, getCategoriesByEvent, getSchedulesByEvent, EventItem, CategoryItem, ScheduleItem } from '../services/panitia/events.service';
 import { formatDate } from '../utils/date';
 import { getFileUrl, downloadOrOpenGuidebook } from '../utils/url';
 import { getCategoryIcon } from '../utils/icons';
@@ -34,21 +34,23 @@ export default function EventDetailScreen() {
     isRefetching,
     error,
     refetch,
-  } = useQuery<{ event: EventItem | null; categories: CategoryItem[] }>({
+  } = useQuery<{ event: EventItem | null; categories: CategoryItem[]; schedules: ScheduleItem[] }>({
     queryKey: queryKeys.eventDetail(currentEventId),
     enabled: !!currentEventId,
     staleTime: cacheTime.cold,
     queryFn: async () => {
-      const [ev, cats] = await Promise.all([
+      const [ev, cats, sch] = await Promise.all([
         getEventById(currentEventId).catch(() => null),
         getCategoriesByEvent(currentEventId).catch(() => []),
+        getSchedulesByEvent(currentEventId).catch(() => []),
       ]);
-      return { event: ev, categories: cats };
+      return { event: ev, categories: cats, schedules: sch };
     },
   });
 
   const event = data?.event || null;
   const categories = data?.categories || [];
+  const schedules = data?.schedules || [];
 
   const errorMsg = !currentEventId
     ? 'ID Event tidak valid atau tidak ditemukan.'
@@ -182,7 +184,39 @@ export default function EventDetailScreen() {
           </View>
         ) : null}
 
-        {/* 4. Dokumen Guidebook Resmi */}
+        {/* 4. Jadwal & Dresscode */}
+        {schedules.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="calendar-outline" size={18} color={Colors.primary} />
+              <Text style={styles.cardTitle}>Jadwal & Dresscode ({schedules.length})</Text>
+            </View>
+            {schedules.map((sch) => (
+              <View key={sch.id} style={styles.scheduleItem}>
+                <View style={styles.scheduleDateBadge}>
+                  <Text style={styles.scheduleDateText}>{formatDate(sch.date, { monthStyle: 'short' })}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.scheduleDayLabel}>{sch.dayLabel}</Text>
+                  {sch.dresscodeText ? (
+                    <Text style={styles.scheduleDresscode}>Dresscode: {sch.dresscodeText}</Text>
+                  ) : null}
+                  {sch.dresscodeImageUrl ? (
+                    <Image
+                      source={{ uri: getFileUrl(sch.dresscodeImageUrl) }}
+                      style={styles.scheduleDresscodeImg}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* 5. Dokumen Guidebook Resmi */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="book-outline" size={18} color={Colors.primary} />
@@ -223,7 +257,7 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 5. Daftar Cabang Lomba */}
+        {/* 6. Daftar Cabang Lomba */}
         {categories.length > 0 && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -477,6 +511,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 22,
+  },
+  scheduleItem: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  scheduleDateBadge: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  scheduleDateText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  scheduleDayLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textMain,
+    marginBottom: 2,
+  },
+  scheduleDresscode: {
+    fontSize: 13,
+    color: Colors.textSubtitle,
+    lineHeight: 18,
+  },
+  scheduleDresscodeImg: {
+    width: '100%',
+    height: 140,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.sm,
+    backgroundColor: '#F1F5F9',
   },
   guidebookDesc: {
     fontSize: 13,

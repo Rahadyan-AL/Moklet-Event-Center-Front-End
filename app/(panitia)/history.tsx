@@ -29,11 +29,10 @@ export default function HistoryEventsScreen() {
   const load = useCallback(async () => {
     setError("");
     try {
-      const all = await getEvents(1, 100);
-      // Filter event lampau (CLOSED atau tanggal < hari ini)
-      const nowStr = new Date().toISOString().split("T")[0];
-      const closedList = all.filter((e) => e.status === "CLOSED" || (e.eventDate && e.eventDate < nowStr));
-      setEvents(closedList);
+      // Backend GET /events hanya mengembalikan ONGOING by default --
+      // minta CLOSED secara eksplisit untuk halaman riwayat.
+      const all = await getEvents(1, 100, 'CLOSED');
+      setEvents(all);
     } catch {
       setError("Gagal memuat riwayat event. Tarik untuk mencoba ulang.");
     } finally {
@@ -64,6 +63,10 @@ export default function HistoryEventsScreen() {
           <Ionicons name="image-outline" size={32} color="#BDBDBD" />
         </View>
       )}
+      {/* Badge overlay di pojok kanan-atas banner (kartu overflow hidden) */}
+      <View style={styles.badgeOverlay}>
+        <StatusBadge status="CLOSED" />
+      </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
         <View style={styles.cardMeta}>
@@ -71,7 +74,6 @@ export default function HistoryEventsScreen() {
           <Text style={styles.cardDate}>{formatDate(item.eventDate)}</Text>
         </View>
       </View>
-      <StatusBadge status="CLOSED" />
     </TouchableOpacity>
   );
 
@@ -115,7 +117,9 @@ export default function HistoryEventsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   header: {
+    flexDirection: "row", alignItems: "center",
     backgroundColor: "#fff", paddingHorizontal: Spacing.base, paddingVertical: 12,
+    minHeight: 62,
     borderBottomWidth: 1, borderBottomColor: "#F0F0F0",
   },
   headerTitle: { fontSize: 20, fontWeight: "800", color: "#1E1E1E" },
@@ -138,6 +142,9 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 15, fontWeight: "700", color: "#1E1E1E" },
   cardMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
   cardDate: { fontSize: 12, color: "#9E9E9E" },
+  badgeOverlay: {
+    position: "absolute", top: 10, right: 10,
+  },
   closedBadge: {
     position: "absolute", top: 10, right: 10, borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 4, backgroundColor: "#EFEBE9",

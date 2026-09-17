@@ -33,7 +33,6 @@ export default function CreateEventScreen() {
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [guidebookUri, setGuidebookUri] = useState<string | null>(null);
   const [guidebookName, setGuidebookName] = useState<string | null>(null);
-  const [statusDraft, setStatusDraft] = useState(false); // false = ONGOING (aktif), true = DRAFT
 
   interface CategoryInput {
     name: string;
@@ -56,7 +55,6 @@ export default function CreateEventScreen() {
       setBannerUri(null);
       setGuidebookUri(null);
       setGuidebookName(null);
-      setStatusDraft(false);
       setCategories([]);
       setErrors({});
       setDateObj(new Date());
@@ -128,8 +126,7 @@ export default function CreateEventScreen() {
         eventDate: eventDate.trim(),
         description: description.trim() || undefined,
         contactInfo: contactInfo.trim() || undefined,
-        status: statusDraft ? "DRAFT" : "ONGOING",
-      } as any);
+      });
 
       // Upload banner jika ada
       if (bannerUri && created.id) {
@@ -187,7 +184,6 @@ export default function CreateEventScreen() {
       setBannerUri(null);
       setGuidebookUri(null);
       setGuidebookName(null);
-      setStatusDraft(false);
 
       Alert.alert("Sukses", "Event baru berhasil dibuat!", [
         {
@@ -284,7 +280,7 @@ export default function CreateEventScreen() {
           />
 
           {/* Kontak Panitia */}
-          <Text style={styles.label}>Nomor Kontak Panitia (Opsional)</Text>
+          <Text style={styles.label}>Kontak Panitia (Opsional)</Text>
           <View style={styles.contactRow}>
             <View style={styles.contactIconCircle}>
               <Ionicons name="call-outline" size={18} color={Colors.primary} />
@@ -386,42 +382,6 @@ export default function CreateEventScreen() {
             <Text style={styles.addCategoryText}>Tambah Lomba</Text>
           </TouchableOpacity>
 
-          {/* Status Event */}
-          <Text style={styles.label}>Status Event</Text>
-          <View style={styles.statusToggleRow}>
-            <TouchableOpacity
-              style={[styles.statusBtn, !statusDraft ? styles.statusBtnActive : null]}
-              onPress={() => setStatusDraft(false)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="play-circle-outline" size={18} color={!statusDraft ? "#fff" : "#757575"} />
-              <View>
-                <Text style={[styles.statusBtnLabel, !statusDraft ? styles.statusBtnLabelActive : null]}>
-                  Aktif (Ongoing)
-                </Text>
-                <Text style={[styles.statusBtnSub, !statusDraft ? { color: "rgba(255,255,255,0.8)" } : null]}>
-                  Langsung dipublikasikan
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.statusBtn, statusDraft ? styles.statusBtnDraft : null]}
-              onPress={() => setStatusDraft(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="document-outline" size={18} color={statusDraft ? "#B45309" : "#757575"} />
-              <View>
-                <Text style={[styles.statusBtnLabel, statusDraft ? styles.statusBtnLabelDraft : null]}>
-                  Draft
-                </Text>
-                <Text style={[styles.statusBtnSub, statusDraft ? { color: "#92400E" } : null]}>
-                  Simpan dulu, belum tampil
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
           {/* Upload Banner */}
           <Text style={styles.label}>Banner Event</Text>
           <TouchableOpacity style={styles.uploadCard} onPress={pickBanner} activeOpacity={0.8}>
@@ -468,9 +428,7 @@ export default function CreateEventScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.submitBtnText}>
-                {statusDraft ? "Simpan sebagai Draft" : "Simpan & Publikasikan Event"}
-              </Text>
+              <Text style={styles.submitBtnText}>Simpan & Publikasikan Event</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -513,21 +471,15 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: "#FEE2E2",
     alignItems: "center", justifyContent: "center",
   },
-  // Status Toggle
-  statusToggleRow: { flexDirection: "row", gap: 10 },
+  // Toggle Individu/Tim cabang lomba
   statusBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", gap: 8,
     paddingVertical: 12, paddingHorizontal: Spacing.md, borderRadius: Radius.lg,
     backgroundColor: "#F5F5F5", borderWidth: 1.5, borderColor: "transparent",
   },
   statusBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  statusBtnDraft: {
-    backgroundColor: "#FEF3C7", borderColor: "#F59E0B",
-  },
   statusBtnLabel: { fontSize: 12, fontWeight: "700", color: "#757575" },
   statusBtnLabelActive: { color: "#fff" },
-  statusBtnLabelDraft: { color: "#B45309" },
-  statusBtnSub: { fontSize: 10, color: "#9E9E9E", marginTop: 1 },
   // Upload
   uploadCard: {
     borderWidth: 1.5, borderColor: "#E0E0E0", borderStyle: "dashed",

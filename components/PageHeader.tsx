@@ -13,26 +13,27 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 interface PageHeaderProps {
+  /** Kalau diisi, tombol logout tampil di kanan. Kosongkan untuk header tanpa logout. */
   onLogout?: () => void;
 }
 
 export default function PageHeader({ onLogout }: PageHeaderProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const name = user?.student?.name || user?.email?.split('@')[0] || 'Pengguna';
-  const avatarUrl = user?.student?.avatarUrl;
+  const photoUrl = user?.student?.photoUrl;
 
   const classLabel = user?.student?.class
     ? `${user.student.class.grade} ${user.student.class.name}`
     : null;
   const subtitle = classLabel || ROLE_LABELS[user?.role || ''] || user?.role || '';
 
-  const handleLogout = onLogout || (() => logout());
+  const handleLogout = onLogout;
 
   return (
     <View style={styles.card}>
-      {avatarUrl ? (
-        <Image source={avatarUrl} style={styles.avatar} cachePolicy="memory-disk" />
+      {photoUrl ? (
+        <Image source={photoUrl} style={styles.avatar} cachePolicy="memory-disk" />
       ) : (
         <View style={styles.avatarFallback}>
           <Text style={styles.avatarInitial}>{name.charAt(0).toUpperCase()}</Text>
@@ -44,13 +45,15 @@ export default function PageHeader({ onLogout }: PageHeaderProps) {
           <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
         ) : null}
       </View>
-      <TouchableOpacity
-        style={styles.logoutBtn}
-        onPress={handleLogout}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="log-out-outline" size={22} color={Colors.primary} />
-      </TouchableOpacity>
+      {onLogout ? (
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="log-out-outline" size={22} color={Colors.primary} />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

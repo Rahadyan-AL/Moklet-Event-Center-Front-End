@@ -69,12 +69,13 @@ function PanitiaTabBar({ state, navigation }: any) {
           return (
             <TouchableOpacity
               key={item.name}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
               style={[
                 styles.tabItem,
-                isFocused ? styles.tabItemActive : styles.tabItemInactive,
               ]}
               onPress={onPress}
-              activeOpacity={0.7}
+              activeOpacity={0.85}
             >
               {isFocused ? (
                 <View style={styles.activePill}>
@@ -83,7 +84,7 @@ function PanitiaTabBar({ state, navigation }: any) {
                 </View>
               ) : (
                 <View style={styles.inactiveIconWrapper}>
-                  <Ionicons name={item.iconInactive} size={22} color="#64748B" />
+                  <Ionicons name={item.iconInactive} size={20} color="#64748B" />
                   <Text style={styles.inactiveLabel}>{item.label}</Text>
                 </View>
               )}
@@ -97,7 +98,10 @@ function PanitiaTabBar({ state, navigation }: any) {
 
 export default function PanitiaLayout() {
   return (
-    <RoleGuard allowedRoles={["PANITIA", "SISWA", "ADMIN_KESISWAAN"]}>
+    // Grup panitia khusus PANITIA/ADMIN. Committee (SISWA) punya area
+    // sendiri di (komite) -- mereka tidak pernah butuh masuk ke sini, dan
+    // memblokirnya menghilangkan seluruh kelas bug "lintas area".
+    <RoleGuard allowedRoles={["PANITIA", "ADMIN_KESISWAAN"]}>
       <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <PanitiaTabBar {...props} />}>
         <Tabs.Screen name="dashboard" options={{ title: "Beranda" }} />
         <Tabs.Screen name="events/index" options={{ title: "Event" }} />
@@ -130,37 +134,35 @@ const styles = StyleSheet.create({
   },
   tabItem: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 6,
-  },
-  tabItemActive: {
-    flex: 1.4,
-  },
-  tabItemInactive: {
-    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
   },
   activePill: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 24,
-    gap: 6,
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 56,
   },
   activePillText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "700",
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
   },
   inactiveIconWrapper: {
-    alignItems: "center",
-    gap: 2,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inactiveLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#78909C",
+    color: '#8E9BAE',
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
   },
 });

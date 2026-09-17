@@ -80,7 +80,7 @@ export default function LoginScreen() {
 
       if (currentUser) {
         const userRole = String(currentUser.role || '').toUpperCase();
-        if (currentUser.isEmailVerified === false) {
+        if (currentUser.isVerified === false) {
           router.replace({ pathname: '/verify-otp', params: { email: cleanEmail } });
         } else if (userRole === 'ADMIN_KESISWAAN') {
           // Admin: arahkan ke dashboard admin
@@ -100,6 +100,14 @@ export default function LoginScreen() {
       setLoading(false);
       const apiErr = err as ApiErrorResponse;
       const msg = apiErr.formattedMessage || 'Email atau password salah';
+
+      // Backend menolak login akun belum verifikasi OTP dengan pesan
+      // spesifik -- arahkan langsung ke halaman verifikasi.
+      if (msg.toLowerCase().includes('verifikasi')) {
+        setErrors({ general: msg });
+        router.replace({ pathname: '/verify-otp', params: { email: cleanEmail } });
+        return;
+      }
 
       if (msg.toLowerCase().includes('email')) {
         setErrors({ email: msg });
@@ -409,17 +417,31 @@ export default function LoginScreen() {
                 </View>
                 <Text style={styles.modalTitle}>Email Terkirim!</Text>
                 <Text style={styles.modalSubtitle}>
-                  Instruksi pemulihan password telah dikirim ke{'\n'}
+                  Kode OTP pemulihan password telah dikirim ke{'\n'}
                   <Text style={{ fontWeight: '700', color: Colors.textMain }}>{forgotEmail}</Text>.
-                  Silakan periksa kotak masuk atau folder spam Anda.
+                  Masukkan kode tersebut untuk membuat password baru.
                 </Text>
 
                 <TouchableOpacity
                   style={[styles.primaryButton, { marginTop: Spacing.base }]}
-                  onPress={closeForgotModal}
+                  onPress={() => {
+                    closeForgotModal();
+                    router.push({
+                      pathname: '/reset-password',
+                      params: { email: forgotEmail.trim() },
+                    } as any);
+                  }}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.primaryButtonText}>Kembali ke Login</Text>
+                  <Text style={styles.primaryButtonText}>Masukkan Kode OTP</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={closeForgotModal}
+                  activeOpacity={0.85}
+                  style={{ marginTop: Spacing.sm, paddingVertical: 8 }}
+                >
+                  <Text style={{ color: Colors.textSubtitle, fontSize: 13 }}>Kembali ke Login</Text>
                 </TouchableOpacity>
               </>
             )}

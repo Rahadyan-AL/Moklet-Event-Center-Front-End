@@ -6,6 +6,13 @@ export interface RawAnnouncement {
   title: string;
   content: string;
   eventId?: string | null;
+  // Backend kirim createdBy (Account) + relasi student (nama asli bila akun
+  // ter-bind). Field `author` tidak pernah ada di backend.
+  createdBy?: {
+    id: string;
+    email: string;
+    student?: { name?: string } | null;
+  };
   authorId?: string;
   author?: { id: string; email: string; role?: string; student?: { name?: string } | null };
   event?: { id: string; name: string } | null;
@@ -31,9 +38,10 @@ export interface PaginatedAnnouncements {
 }
 
 export function normalizeAnnouncement(raw: RawAnnouncement): AnnouncementItem {
+  const creator = raw.createdBy || raw.author;
   const authorName =
-    raw.author?.student?.name ||
-    raw.author?.email?.split('@')[0] ||
+    creator?.student?.name ||
+    creator?.email?.split('@')[0] ||
     'Panitia';
   return {
     id: raw.id,

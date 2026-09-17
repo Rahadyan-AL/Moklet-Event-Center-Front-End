@@ -9,7 +9,7 @@ export interface StudentProfile {
   name: string;
   nis: string;
   classId?: string;
-  avatarUrl?: string;
+  photoUrl?: string;
   class?: {
     id: string;
     grade: string;
@@ -21,16 +21,14 @@ export interface UserAccount {
   id: string;
   email: string;
   role: 'SISWA' | 'PANITIA' | 'ADMIN_KESISWAAN';
-  isEmailVerified: boolean;
+  isVerified: boolean;
   student?: StudentProfile | null;
 }
 
 export interface VerifyPasswordResetDto {
-  token?: string;
-  code?: string;
-  email?: string;
-  password?: string;
-  newPassword?: string;
+  email: string;
+  code: string;
+  newPassword: string;
 }
 
 interface AuthContextType {

@@ -13,7 +13,7 @@ export interface StudentItem {
     name: string;
   };
   classId?: string;
-  avatarUrl?: string;
+  photoUrl?: string;
   account?: {
     id: string;
     email: string;

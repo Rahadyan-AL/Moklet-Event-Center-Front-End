@@ -26,14 +26,17 @@ export interface RawEvent {
   id: string;
   name: string;
   description?: string | null;
+  contactInfo?: string | null;
   eventDate?: string | null;
   status?: string;
   bannerUrl?: string | null;
   guidebookUrl?: string | null;
   creatorId?: string;
+  createdById?: string;
   createdAt?: string;
   _count?: { categories?: number; registrations?: number; teams?: number };
   categories?: RawCategory[];
+  eventCommitteeMembers?: RawCommitteeMember[];
 }
 
 export interface RawCategory {
@@ -65,25 +68,27 @@ export interface RawCommitteeMember {
     id: string;
     name: string;
     nis?: string;
-    avatarUrl?: string | null;
+    photoUrl?: string | null;
     class?: { grade: string; name: string } | null;
   };
 }
 
 // ─── Normalized Internal Shapes ────────────────────────────────────────────────
 export interface EventItem {
-  id: string; name: string; description: string; eventDate: string;
+  id: string; name: string; description: string; contactInfo: string | null;
+  eventDate: string;
   status: string; bannerUrl: string | null; guidebookUrl: string | null;
   creatorId: string; createdAt: string;
   totalRegistrations?: number;
   totalCategories?: number;
+  committeeAvatars: { studentId: string; name: string; photoUrl: string | null }[];
 }
 
 export interface CategoryItem {
   id: string; name: string; minMember: number; maxMember: number;
   teamCompositionMode: 'FREE' | 'PER_CLASS' | 'PER_ANGKATAN';
   maxTeamsPerGroup: number | null; maxTotalTeams: number | null;
-  excludeGrade12: boolean; totalRegistrations: number;
+  excludeGrade12: boolean; totalRegistrations: number; totalTeams: number;
 }
 
 export interface ScheduleItem {
@@ -93,7 +98,7 @@ export interface ScheduleItem {
 
 export interface CommitteeMemberItem {
   studentId: string; role: string; name: string; nis: string;
-  avatarUrl: string | null; classLabel: string;
+  photoUrl: string | null; classLabel: string;
 }
 
 export interface ManagedTeamItem {
@@ -105,21 +110,29 @@ export interface ManagedTeamItem {
 export function normalizeEvent(raw: RawEvent): EventItem {
   const count = raw._count;
   const cats = raw.categories || [];
-  let totalRegistrations = (count?.registrations ?? 0) + (count?.teams ?? 0);
-  if (totalRegistrations === 0 && cats.length > 0) {
+  // 1 Registration = 1 peserta (individu maupun anggota tim).
+  // JANGAN jumlahkan dengan teams -- itu double counting.
+  let totalRegistrations = count?.registrations ?? 0;
+  if (!totalRegistrations && cats.length > 0) {
     totalRegistrations = cats.reduce(
-      (acc, c) => acc + (c._count?.teams ?? 0) + (c._count?.registrations ?? 0),
+      (acc, c) => acc + (c._count?.registrations ?? 0),
       0
     );
   }
 
   return {
     id: raw.id, name: raw.name || '', description: raw.description || '',
+    contactInfo: raw.contactInfo || null,
     eventDate: raw.eventDate || '', status: raw.status || 'ONGOING',
     bannerUrl: raw.bannerUrl || null, guidebookUrl: raw.guidebookUrl || null,
-    creatorId: raw.creatorId || '', createdAt: raw.createdAt || '',
+    creatorId: raw.creatorId || raw.createdById || '', createdAt: raw.createdAt || '',
     totalRegistrations,
     totalCategories: count?.categories ?? cats.length,
+    committeeAvatars: (raw.eventCommitteeMembers || []).map((m) => ({
+      studentId: m.studentId,
+      name: m.student?.name || '',
+      photoUrl: m.student?.photoUrl || null,
+    })),
   };
 }
 
@@ -130,7 +143,8 @@ export function normalizeCategory(raw: RawCategory): CategoryItem {
     maxMember: raw.maxMember ?? 1, teamCompositionMode: raw.teamCompositionMode || 'FREE',
     maxTeamsPerGroup: raw.maxTeamsPerGroup ?? null, maxTotalTeams: raw.maxTotalTeams ?? null,
     excludeGrade12: raw.excludeGrade12 ?? true,
-    totalRegistrations: (count?.teams ?? 0) + (count?.registrations ?? 0),
+    totalRegistrations: count?.registrations ?? 0,
+    totalTeams: count?.teams ?? 0,
   };
 }
 
@@ -145,13 +159,13 @@ export function normalizeCommitteeMember(raw: RawCommitteeMember): CommitteeMemb
   const st = raw.student;
   return {
     studentId: raw.studentId, role: raw.role || 'Anggota', name: st?.name || '',
-    nis: st?.nis || '', avatarUrl: st?.avatarUrl || null,
+    nis: st?.nis || '', photoUrl: st?.photoUrl || null,
     classLabel: st?.class ? `${st.class.grade} ${st.class.name}`.trim() : '',
   };
 }
 
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
-export interface CreateEventDto { name: string; eventDate: string; description?: string; }
+export interface CreateEventDto { name: string; eventDate: string; description?: string; contactInfo?: string; }
 export type UpdateEventDto = Partial<CreateEventDto>;
 
 export interface CreateCategoryDto {
@@ -167,8 +181,14 @@ export interface CreateScheduleDto { date: string; dayLabel: string; dresscodeTe
 export type UpdateScheduleDto = Partial<CreateScheduleDto>;
 
 // ─── Events CRUD ───────────────────────────────────────────────────────────────
-export async function getEvents(page = 1, limit = 50): Promise<EventItem[]> {
-  const res: any = await api.get(`/events?page=${page}&limit=${limit}`);
+export async function getEvents(
+  page = 1,
+  limit = 50,
+  status?: 'ONGOING' | 'CLOSED' | 'ALL'
+): Promise<EventItem[]> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (status) params.set('status', status);
+  const res: any = await api.get(`/events?${params.toString()}`);
   const raw: RawEvent[] = Array.isArray(res) ? res : (res?.data ?? []);
   return raw.map(normalizeEvent);
 }

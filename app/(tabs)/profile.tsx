@@ -31,7 +31,7 @@ export default function ProfileScreen() {
   const schoolLabel = user?.student?.class
     ? `${user.student.class.grade} ${user.student.class.name} • SMK Telkom Malang`
     : 'Siswa SMK Telkom Malang';
-  const avatarUri = getFileUrl(user?.student?.avatarUrl);
+  const avatarUri = getFileUrl(user?.student?.photoUrl);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const avatarMutation = useMutation({
@@ -85,9 +85,6 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profil Saya</Text>
-        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} onPress={() => setShowLogoutModal(true)}>
-          <Ionicons name="log-out-outline" size={22} color={Colors.primary} />
-        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -245,14 +242,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: Colors.textMain,
-  },
-  logoutBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   container: {
     padding: Spacing.base,

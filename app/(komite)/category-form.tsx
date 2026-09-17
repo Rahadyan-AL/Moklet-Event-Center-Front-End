@@ -1,9 +1,9 @@
-// app/(panitia)/events/[id]/category-form.tsx
+// app/(komite)/category-form.tsx
 import React from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import CategoryForm from '../../../../components/event-manage/CategoryForm';
+import CategoryForm from '../../components/event-manage/CategoryForm';
 
-export default function CategoryFormScreen() {
+export default function KomiteCategoryFormScreen() {
   const { eventId, categoryId } = useLocalSearchParams<{ eventId?: string; categoryId?: string }>();
   return (
     <CategoryForm

@@ -1,5 +1,5 @@
 // app/(tabs)/home.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  Modal,
-  Pressable,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -34,9 +32,78 @@ import {
 } from '../../services/panitia/announcements.service';
 import { getFileUrl } from '../../utils/url';
 import StatusBadge from '../../components/StatusBadge';
+import PageHeader from '../../components/PageHeader';
 
 const { width } = Dimensions.get('window');
 const BANNER_WIDTH = width - Spacing.xl * 2;
+
+// ─── Avatar stack panitia (home komite) ──────────────────────────────────────
+const STACK_COLORS = ['#EF5350', '#AB47BC', '#5C6BC0', '#26A69A', '#FFA726', '#8D6E63', '#42A5F5'];
+
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return STACK_COLORS[Math.abs(hash) % STACK_COLORS.length];
+}
+
+function initialsOf(name: string): string {
+  const parts = (name || '').trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (name || 'P').substring(0, 2).toUpperCase();
+}
+
+const MAX_STACK = 4;
+
+function CommitteeAvatarStack({
+  members,
+}: {
+  members: { studentId: string; name: string; photoUrl: string | null }[];
+}) {
+  const total = members.length;
+  if (total === 0) {
+    return (
+      <View style={avatarStyles.stack}>
+        <View style={[avatarStyles.bubble, avatarStyles.soloFallback]}>
+          <Ionicons name="people-outline" size={14} color="#94A3B8" />
+        </View>
+        <Text style={avatarStyles.fallbackText}>Belum ada panitia</Text>
+      </View>
+    );
+  }
+
+  const shown = members.slice(0, MAX_STACK);
+  const extra = total - shown.length;
+
+  return (
+    <View style={avatarStyles.stack}>
+      {shown.map((m, i) => (
+        <View
+          key={m.studentId}
+          style={[avatarStyles.bubble, avatarStyles.bordered, { zIndex: MAX_STACK - i, marginLeft: i === 0 ? 0 : -10 }]}
+        >
+          {m.photoUrl ? (
+            <Image
+              source={{ uri: getFileUrl(m.photoUrl) }}
+              style={avatarStyles.photo}
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View style={[avatarStyles.photo, { backgroundColor: avatarColor(m.name) }]}>
+              <Text style={avatarStyles.initials}>{initialsOf(m.name)}</Text>
+            </View>
+          )}
+        </View>
+      ))}
+      {extra > 0 && (
+        <View style={[avatarStyles.bubble, avatarStyles.bordered, avatarStyles.moreBubble, { marginLeft: -10 }]}>
+          <Text style={avatarStyles.moreText}>+{extra}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 function formatRelativeTime(isoStr: string): string {
   if (!isoStr) return '';
@@ -73,13 +140,11 @@ function getAnnouncementIcon(index: number): { name: any; bg: string; color: str
 }
 
 export default function HomeScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const studentName = user?.student?.name || user?.email?.split('@')[0] || 'Siswa';
   const classLabel = user?.student?.class
     ? `${user.student.class.grade} ${user.student.class.name}`
     : user?.role || 'Siswa';
-
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const {
     data: homeData,
@@ -121,11 +186,6 @@ export default function HomeScreen() {
     refetch();
   };
 
-  const handleLogout = async () => {
-    setShowLogoutModal(false);
-    await logout();
-  };
-
   const managedEventNames = managedEvents.map((e) => e.name).join(', ');
 
   return (
@@ -133,31 +193,8 @@ export default function HomeScreen() {
       {/* ─── CASE 1: SISWA IS A COMMITTEE MEMBER (DASHBOARD KOMITE EVENT - Screenshot 4) ─── */}
       {isCommittee ? (
         <>
-          {/* Header — disamakan dengan admin/dashboard.tsx */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              {user?.student?.avatarUrl ? (
-                <Image source={user.student.avatarUrl} style={styles.avatarImg} cachePolicy="memory-disk" />
-              ) : (
-                <View style={styles.avatarBorder}>
-                  <View style={styles.avatarInner}>
-                    <Text style={styles.avatarInitial}>{studentName.charAt(0).toUpperCase()}</Text>
-                  </View>
-                </View>
-              )}
-              <View>
-                <Text style={styles.greetLabel}>Selamat datang,</Text>
-                <Text style={styles.greetName} numberOfLines={1}>{studentName}</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.logoutBtn}
-              activeOpacity={0.8}
-              onPress={() => setShowLogoutModal(true)}
-            >
-              <Ionicons name="log-out-outline" size={22} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
+          {/* Header — komponen sama dengan admin/dashboard & panitia/dashboard */}
+          <PageHeader />
 
           <ScrollView
             contentContainerStyle={styles.scroll}
@@ -223,21 +260,14 @@ export default function HomeScreen() {
                         </View>
 
                         <View style={styles.eventBottomRow}>
-                          <View>
-                            <Text style={styles.pendaftarLabel}>Total Pendaftar</Text>
-                            <Text style={styles.pendaftarVal}>
-                              {ev.totalRegistrations !== undefined && ev.totalRegistrations > 0
-                                ? `${ev.totalRegistrations} Tim`
-                                : `${ev.totalCategories || 0} Cabang Lomba`}
-                            </Text>
-                          </View>
+                          <CommitteeAvatarStack members={ev.committeeAvatars} />
                           <TouchableOpacity
                             style={styles.kelolaBtn}
                             activeOpacity={0.85}
                             onPress={() =>
                               router.push({
-                                pathname: '/(panitia)/events/[id]',
-                                params: { id: ev.id },
+                                pathname: '/(komite)/manage',
+                                params: { eventId: ev.id },
                               } as any)
                             }
                           >
@@ -289,31 +319,8 @@ export default function HomeScreen() {
       ) : (
         /* ─── CASE 2: REGULAR SISWA (NOT A COMMITTEE MEMBER) ─── */
         <>
-          {/* Header — disamakan dengan admin/dashboard.tsx */}
-          <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            {user?.student?.avatarUrl ? (
-              <Image source={user.student.avatarUrl} style={styles.avatarImg} cachePolicy="memory-disk" />
-            ) : (
-              <View style={styles.avatarBorder}>
-                <View style={styles.avatarInner}>
-                  <Text style={styles.avatarInitial}>{studentName.charAt(0).toUpperCase()}</Text>
-                </View>
-              </View>
-            )}
-            <View>
-              <Text style={styles.greetLabel}>Selamat datang,</Text>
-              <Text style={styles.greetName} numberOfLines={1}>{studentName}</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            activeOpacity={0.8}
-            onPress={() => setShowLogoutModal(true)}
-          >
-            <Ionicons name="log-out-outline" size={22} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
+          {/* Header — komponen sama dengan admin/dashboard & panitia/dashboard */}
+          <PageHeader />
 
         <ScrollView
           style={styles.scrollContainer}
@@ -425,37 +432,6 @@ export default function HomeScreen() {
         </ScrollView>
         </>
       )}
-
-      {/* Logout Modal */}
-      <Modal
-        visible={showLogoutModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLogoutModal(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowLogoutModal(false)}>
-          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalIconWrap}>
-              <Ionicons name="log-out-outline" size={32} color={Colors.primary} />
-            </View>
-            <Text style={styles.modalTitle}>Keluar Akun</Text>
-            <Text style={styles.modalDesc}>
-              Apakah kamu yakin ingin keluar dari Moklet Event Center?
-            </Text>
-            <View style={styles.modalActionRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setShowLogoutModal(false)}
-              >
-                <Text style={styles.modalCancelText}>Batal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleLogout}>
-                <Text style={styles.modalConfirmText}>Ya, Keluar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -464,74 +440,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingHorizontal: Spacing.base,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  avatarImg: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-  },
-  avatarBorder: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    padding: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  greetLabel: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '500',
-  },
-  greetName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    maxWidth: 200,
-  },
-  logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scroll: {
     padding: Spacing.base,
@@ -799,46 +707,32 @@ const styles = StyleSheet.create({
   newsTitle: { fontSize: 14, fontWeight: '700', color: '#1E1E1E' },
   newsBody: { fontSize: 12, color: '#757575', lineHeight: 17 },
   newsTime: { fontSize: 10, color: '#9E9E9E', marginTop: 2 },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+});
+
+const avatarStyles = StyleSheet.create({
+  stack: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  bubble: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    overflow: 'hidden',
+  },
+  bordered: {
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  soloFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.xl,
-  },
-  modalCard: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
-    alignItems: 'center',
-    gap: 12,
-  },
-  modalIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#1E1E1E' },
-  modalDesc: { fontSize: 13, color: '#757575', textAlign: 'center' },
-  modalActionRow: { flexDirection: 'row', gap: Spacing.md, width: '100%', marginTop: 8 },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: Radius.lg,
     backgroundColor: '#F1F5F9',
   },
-  modalCancelText: { fontSize: 14, fontWeight: '700', color: '#475569' },
-  modalConfirmBtn: {
-    flex: 1,
-    paddingVertical: 12,
+  fallbackText: { fontSize: 11, color: '#94A3B8', marginLeft: 6 },
+  photo: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  initials: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  moreBubble: {
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.primary,
+    justifyContent: 'center',
   },
-  modalConfirmText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  moreText: { fontSize: 10, fontWeight: '800', color: '#475569' },
 });

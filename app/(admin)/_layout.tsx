@@ -25,15 +25,25 @@ function AdminTabBar({ state, descriptors, navigation }: any) {
         if (!tab) return null;
         const isActive = state.index === index;
         const onPress = () => {
-          if (!isActive) navigation.navigate(route.name);
+          if (isActive) return;
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
         };
 
         return (
           <TouchableOpacity
             key={route.name}
+            accessibilityRole="button"
+            accessibilityState={isActive ? { selected: true } : {}}
             style={styles.tabItem}
             onPress={onPress}
-            activeOpacity={0.75}
+            activeOpacity={0.85}
           >
             {isActive ? (
               <View style={styles.activePill}>
@@ -42,7 +52,7 @@ function AdminTabBar({ state, descriptors, navigation }: any) {
               </View>
               ) : (
                 <View style={styles.inactiveTab}>
-                  <Ionicons name={tab.icon} size={22} color="#64748B" />
+                  <Ionicons name={tab.icon} size={20} color="#64748B" />
                   <Text style={styles.inactiveTabText}>{tab.label}</Text>
                 </View>
               )}
@@ -89,29 +99,33 @@ function AdminTabBar({ state, descriptors, navigation }: any) {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   activePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 24,
-    gap: 6,
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 56,
   },
   activePillText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '700',
+    marginTop: 2,
   },
   inactiveTab: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
   },
   inactiveTabText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#78909C',
+    color: '#8E9BAE',
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
   },
 });
